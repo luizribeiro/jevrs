@@ -19,7 +19,9 @@ pub enum Error {
     /// Match this to report invalid runtime-defined options or levels.
     #[error("invalid criteria for {id:?}: {reason}")]
     InvalidCriteria {
-        /// Use this to identify the affected question when one is available.
+        /// Use this to identify the question a [`Questions`](crate::Questions)
+        /// builder method rejected; [`DynOptions::new`](crate::DynOptions::new)
+        /// and [`DynLevels::new`](crate::DynLevels::new) leave it `None`.
         id: Option<String>,
         /// Use this static explanation in validation feedback.
         reason: &'static str,

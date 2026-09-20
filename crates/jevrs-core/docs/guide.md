@@ -37,10 +37,13 @@ assert!(answers.get(urgent).is_yes(0.9));
 # Ok::<(), jevrs_core::Error>(())
 ```
 
-Use [`Options`] and [`Levels`] implementations for compile-time criteria. Use
-[`DynOptions`] and [`DynLevels`] when criteria come from configuration or a
-database. Implement [`QuestionSet`] when you want a reusable typed group;
-`jevrs` also provides derives for these traits.
+Use [`Options`] and [`Levels`] implementations for compile-time criteria. Pass
+runtime criteria straight to [`Questions::choice_dyn`] and
+[`Questions::score_dyn`]; they validate the items and name the question in
+[`Error::InvalidCriteria`]. Use [`DynOptions`] and [`DynLevels`] to validate
+once up front and reuse the criteria across batches. Implement [`QuestionSet`]
+when you want a reusable typed group; `jevrs` also provides derives for these
+traits.
 
 Transport adapters should preserve error details for callers:
 
