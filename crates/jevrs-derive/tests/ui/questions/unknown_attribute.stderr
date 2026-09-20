@@ -1,0 +1,5 @@
+error: unknown `jev` attribute; use `noul`, `choice`, `score`, `id`, `yes`, or `no`
+ --> tests/ui/questions/unknown_attribute.rs:5:37
+  |
+5 |     #[jev(noul = "Is this urgent?", label = "urgent")]
+  |                                     ^^^^^

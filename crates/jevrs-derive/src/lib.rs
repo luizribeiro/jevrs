@@ -7,6 +7,7 @@ mod attrs;
 mod indexed;
 mod levels;
 mod options;
+mod questions;
 
 /// Derives `jevrs::Options` for a unit-variant enum.
 ///
@@ -86,6 +87,64 @@ pub fn derive_options(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Levels, attributes(jev))]
 pub fn derive_levels(input: TokenStream) -> TokenStream {
     levels::expand(&parse_macro_input!(input as DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Derives a reusable, statically typed Jev question set from named fields.
+///
+/// Each field has exactly one question-kind attribute. The field type is its
+/// question marker, and `id` defaults to the field name:
+///
+/// | Kind | Required attribute | Optional attributes |
+/// | --- | --- | --- |
+/// | Yes/no | `#[jev(noul = "instructions")]` | `id`, or both `yes` and `no` |
+/// | Choice | `#[jev(choice = "instructions")]` | `id` |
+/// | Score | `#[jev(score = "instructions")]` | `id` |
+///
+/// Set `#[jev(crate = "::jevrs_core")]` on the struct when using the core
+/// crate directly. The derive generates public `<Name>Handles` and
+/// `<Name>Answers` structs.
+///
+/// ```
+/// use jevrs::{Choice, Noul, QuestionSet, Score};
+/// use jevrs_derive::{Levels, Options, Questions};
+///
+/// #[derive(Clone, Copy, Debug, Eq, Options, PartialEq)]
+/// enum Dept {
+///     /// Payments and refunds
+///     Billing,
+///     Sales,
+/// }
+/// #[derive(Clone, Copy, Debug, Eq, Levels, Ord, PartialEq, PartialOrd)]
+/// enum Mood {
+///     /// Calm
+///     Calm,
+///     /// Frustrated
+///     Frustrated,
+/// }
+/// #[derive(Questions)]
+/// struct Triage {
+///     #[jev(noul = "Does this convey urgency?")]
+///     urgent: Noul,
+///     #[jev(choice = "Which team should handle this?")]
+///     department: Choice<Dept>,
+///     #[jev(score = "How frustrated is the customer?", id = "mood")]
+///     frustration: Score<Mood>,
+/// }
+///
+/// let (questions, handles) = Triage::questions()?;
+/// assert_eq!(questions.len(), 3);
+/// let _ = handles;
+/// # Ok::<(), jevrs::Error>(())
+/// ```
+///
+/// Compilation fails for non-structs, tuple or empty structs, missing or
+/// conflicting question kinds, incomplete yes/no criteria, unknown attributes,
+/// or duplicate wire IDs.
+#[proc_macro_derive(Questions, attributes(jev))]
+pub fn derive_questions(input: TokenStream) -> TokenStream {
+    questions::expand(&parse_macro_input!(input as DeriveInput))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

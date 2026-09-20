@@ -1,0 +1,6 @@
+error: `yes` and `no` must be provided together
+ --> tests/ui/questions/yes_without_no.rs:5:5
+  |
+5 | /     #[jev(noul = "Is this urgent?", yes = "Urgent")]
+6 | |     urgent: jevrs::Noul,
+  | |_______________________^

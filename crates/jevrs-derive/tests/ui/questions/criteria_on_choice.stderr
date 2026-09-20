@@ -1,0 +1,6 @@
+error: `yes` and `no` are only valid for a `noul` question
+ --> tests/ui/questions/criteria_on_choice.rs:5:5
+  |
+5 | /     #[jev(choice = "Where should this go?", yes = "Billing", no = "Sales")]
+6 | |     department: jevrs::Noul,
+  | |___________________________^

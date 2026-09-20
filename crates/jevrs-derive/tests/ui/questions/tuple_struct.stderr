@@ -1,0 +1,5 @@
+error: `Questions` requires a struct with named fields
+ --> tests/ui/questions/tuple_struct.rs:4:14
+  |
+4 | struct Triage(jevrs::Noul);
+  |              ^^^^^^^^^^^^^

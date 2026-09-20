@@ -1,0 +1,6 @@
+use jevrs_derive::Questions;
+
+#[derive(Questions)]
+struct Triage(jevrs::Noul);
+
+fn main() {}

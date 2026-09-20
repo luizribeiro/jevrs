@@ -1,0 +1,5 @@
+error: question field requires exactly one of `#[jev(noul = "…")]`, `#[jev(choice = "…")]`, or `#[jev(score = "…")]`
+ --> tests/ui/questions/missing_attribute.rs:5:5
+  |
+5 |     urgent: jevrs::Noul,
+  |     ^^^^^^^^^^^^^^^^^^^

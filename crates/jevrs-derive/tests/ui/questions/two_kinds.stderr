@@ -1,0 +1,5 @@
+error: question field must have exactly one of `noul`, `choice`, or `score`
+ --> tests/ui/questions/two_kinds.rs:5:37
+  |
+5 |     #[jev(noul = "Is this urgent?", choice = "Where should this go?")]
+  |                                     ^^^^^^

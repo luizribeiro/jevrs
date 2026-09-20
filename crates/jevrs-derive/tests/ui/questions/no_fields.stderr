@@ -1,0 +1,5 @@
+error: `Questions` requires at least one question field
+ --> tests/ui/questions/no_fields.rs:4:8
+  |
+4 | struct Triage {}
+  |        ^^^^^^

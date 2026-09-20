@@ -20,4 +20,5 @@ proc-macro2 = "1"
 [dev-dependencies]
 jevrs = { path = "../jevrs", default-features = false }
 jevrs-core = { path = "../jevrs-core" }
+serde_json.workspace = true
 trybuild = "1"

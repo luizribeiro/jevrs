@@ -1,0 +1,7 @@
+error: `Questions` can only be derived for a struct with named fields
+ --> tests/ui/questions/non_struct.rs:4:1
+  |
+4 | / enum Triage {
+5 | |     Urgent,
+6 | | }
+  | |_^

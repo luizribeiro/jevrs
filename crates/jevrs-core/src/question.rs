@@ -15,7 +15,7 @@ pub trait Question: 'static {
 }
 
 /// Marker for a yes/no question.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct NoulQ;
 
 /// Marker for a choice question using static options `O`.
@@ -27,12 +27,24 @@ pub struct ChoiceQ<O: Options>(PhantomData<O>);
 pub struct ScoreQ<L: Levels>(PhantomData<L>);
 
 /// Marker for a choice question using runtime-defined options.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct DynChoiceQ;
 
 /// Marker for a score question using runtime-defined levels.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct DynScoreQ;
+
+impl<O: Options> Default for ChoiceQ<O> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<L: Levels> Default for ScoreQ<L> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 
 /// Readable alias for a yes/no question marker in a [`crate::QuestionSet`].
 pub type Noul = NoulQ;

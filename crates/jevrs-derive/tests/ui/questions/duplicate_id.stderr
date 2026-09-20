@@ -1,0 +1,5 @@
+error: duplicate question id `urgent` from `urgent`; give `severe` a unique `id`
+ --> tests/ui/questions/duplicate_id.rs:7:42
+  |
+7 |     #[jev(noul = "Is this severe?", id = "urgent")]
+  |                                          ^^^^^^^^
