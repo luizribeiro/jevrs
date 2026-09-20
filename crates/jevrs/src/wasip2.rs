@@ -33,6 +33,7 @@ const READ_CHUNK_SIZE: u64 = 64 * 1024;
 ///
 /// This type owns only plain data, so it can cross the client's `Send` and
 /// `Sync` error boundary without retaining a WASI resource handle.
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip2")))]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Wasip2Error {
@@ -89,6 +90,7 @@ impl From<ErrorCode> for Wasip2Error {
 /// # Ok(())
 /// # }
 /// ```
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip2")))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Wasip2Transport;
 
@@ -130,6 +132,7 @@ impl Transport for Wasip2Transport {
 /// let builder = Client::builder(Wasip2Transport).sleep(Wasip2Sleep);
 /// # let _ = builder;
 /// ```
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip2")))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Wasip2Sleep;
 

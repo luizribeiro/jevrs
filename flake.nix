@@ -140,6 +140,16 @@
               RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --locked
             '';
           };
+          docsrs =
+            (cargoHook {
+              name = "docsrs-hook";
+              text = ''
+                nix develop .#nightly -c sh -c 'RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo doc --workspace --no-deps --all-features --locked'
+              '';
+            })
+            // {
+              stages = [ "pre-push" ];
+            };
         };
         offlineHooks = {
           nixfmt.enable = true;

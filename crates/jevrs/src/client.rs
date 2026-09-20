@@ -80,7 +80,7 @@ impl Client<ReqwestTransport, TokioSleep> {
     /// # Ok(())
     /// # }
     /// ```
-    #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "reqwest", feature = "native-tls"))))]
     #[must_use]
     pub fn reqwest() -> ClientBuilder<ReqwestTransport, TokioSleep> {
         Client::<ReqwestTransport>::builder(ReqwestTransport::default()).sleep(TokioSleep)

@@ -24,7 +24,7 @@ use crate::{Sleep, Transport};
 /// # Ok(())
 /// # }
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "reqwest", feature = "native-tls"))))]
 #[derive(Clone, Debug)]
 pub struct ReqwestTransport(reqwest::Client);
 
@@ -91,7 +91,7 @@ impl Transport for ReqwestTransport {
 ///     .sleep(TokioSleep);
 /// # let _ = builder;
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "reqwest", feature = "native-tls"))))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TokioSleep;
 

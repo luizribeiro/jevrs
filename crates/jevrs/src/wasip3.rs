@@ -24,6 +24,7 @@ use crate::{Sleep, Transport};
 ///
 /// This type owns only plain data, so it can cross the client's `Send` and
 /// `Sync` error boundary without retaining a WASI resource handle.
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip3")))]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Wasip3Error {
@@ -63,6 +64,7 @@ impl From<ErrorCode> for Wasip3Error {
 /// # Ok(())
 /// # }
 /// ```
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip3")))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Wasip3Transport;
 
@@ -101,6 +103,7 @@ impl Transport for Wasip3Transport {
 /// let builder = Client::builder(Wasip3Transport).sleep(Wasip3Sleep);
 /// # let _ = builder;
 /// ```
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip3")))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Wasip3Sleep;
 

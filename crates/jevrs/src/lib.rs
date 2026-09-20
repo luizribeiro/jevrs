@@ -30,8 +30,10 @@ pub use jevrs_core::*;
 #[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
 pub use jevrs_derive::{Levels, Options, Questions};
 #[cfg(feature = "test-util")]
+#[cfg_attr(docsrs, doc(cfg(feature = "test-util")))]
 pub use mock::{MockError, MockSleep, MockTransport};
 #[cfg(any(feature = "reqwest", feature = "native-tls"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "reqwest", feature = "native-tls"))))]
 pub use reqwest::{ReqwestTransport, TokioSleep};
 pub use retry::RetryPolicy;
 pub use transport::{MaybeSend, NoSleep, Sleep, Transport};
