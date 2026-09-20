@@ -1,6 +1,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../docs/guide.md")]
 
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;
+
 mod client;
 #[cfg(feature = "test-util")]
 mod mock;
