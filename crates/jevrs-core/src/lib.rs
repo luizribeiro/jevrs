@@ -3,6 +3,7 @@
 
 extern crate alloc;
 
+mod builder;
 mod error;
 mod options;
 mod probability;
@@ -11,6 +12,7 @@ mod question;
 pub(crate) mod test_support;
 mod types;
 
+pub use builder::{BatchId, Handle, Questions, encode};
 pub use error::{Error, ErrorDetail, classify};
 pub use options::{ArrayMap, DynLevels, DynOptions, Indexed, Levels, Options};
 pub use probability::{Confidence, Probability};

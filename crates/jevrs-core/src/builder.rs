@@ -1,0 +1,592 @@
+use alloc::{string::String, vec, vec::Vec};
+use core::{
+    fmt,
+    marker::PhantomData,
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+use serde::{
+    Serialize, Serializer,
+    ser::{SerializeMap, SerializeStruct},
+};
+
+use crate::{
+    ChoiceQ, DynChoiceQ, DynLevels, DynOptions, DynScoreQ, Error, Instructions, Levels, Model,
+    NoulQ, Options, Question, ScoreQ,
+};
+
+static NEXT_BATCH_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Identifies the [`Questions`] builder that created a typed [`Handle`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BatchId(u64);
+
+/// A typed reference to one question in a [`Questions`] batch.
+#[allow(dead_code)]
+pub struct Handle<Q: Question> {
+    idx: u32,
+    batch: BatchId,
+    _q: PhantomData<Q>,
+}
+
+impl<Q: Question> Copy for Handle<Q> {}
+
+impl<Q: Question> Clone for Handle<Q> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<Q: Question> fmt::Debug for Handle<Q> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Handle")
+            .field("idx", &self.idx)
+            .field("batch", &self.batch)
+            .finish()
+    }
+}
+
+/// An insertion-ordered collection of questions sent in one Jev request.
+///
+/// Use the returned handles to retrieve typed answers after decoding.
+///
+/// ```
+/// use jevrs_core::{DynLevels, DynOptions, Questions};
+///
+/// let mut questions = Questions::new();
+/// let urgent = questions.noul_with(
+///     "is_urgent",
+///     "Does this convey urgency?",
+///     "Explicitly time-sensitive",
+///     "No urgency expressed",
+/// )?;
+/// let department = questions.choice_dyn(
+///     "department",
+///     "Which team should handle this?",
+///     DynOptions::new([
+///         ("billing".into(), Some("Payments, invoicing, refunds".into())),
+///         ("technical".into(), Some("Bugs, outages, integrations".into())),
+///         ("sales".into(), None),
+///     ])?,
+/// )?;
+/// let frustration = questions.score_dyn(
+///     "frustration",
+///     "How frustrated is the customer?",
+///     DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()])?,
+/// )?;
+///
+/// assert_eq!(questions.len(), 3);
+/// let _ = (urgent, department, frustration);
+/// # Ok::<(), jevrs_core::Error>(())
+/// ```
+pub struct Questions {
+    entries: Vec<QuestionEntry>,
+    batch: BatchId,
+}
+
+impl Questions {
+    /// Creates an empty question batch with a distinct identity.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+            batch: BatchId(NEXT_BATCH_ID.fetch_add(1, Ordering::Relaxed)),
+        }
+    }
+
+    /// Adds a yes/no question without outcome descriptions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
+    pub fn noul(
+        &mut self,
+        id: impl Into<String>,
+        instructions: impl Into<Instructions>,
+    ) -> Result<Handle<NoulQ>, Error> {
+        self.insert(id.into(), instructions.into(), "noul", None)
+    }
+
+    /// Adds a yes/no question with descriptions for both outcomes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
+    pub fn noul_with(
+        &mut self,
+        id: impl Into<String>,
+        instructions: impl Into<Instructions>,
+        yes: &str,
+        no: &str,
+    ) -> Result<Handle<NoulQ>, Error> {
+        let criteria = ChoiceCriteria(vec![
+            ("true".into(), Some(yes.into())),
+            ("false".into(), Some(no.into())),
+        ]);
+        self.insert(
+            id.into(),
+            instructions.into(),
+            "noul",
+            Some(Criteria::Map(criteria)),
+        )
+    }
+
+    /// Adds a choice question backed by static options.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
+    pub fn choice<O: Options>(
+        &mut self,
+        id: impl Into<String>,
+        instructions: impl Into<Instructions>,
+    ) -> Result<Handle<ChoiceQ<O>>, Error> {
+        let () = O::COUNT_OK;
+        let criteria = ChoiceCriteria(
+            O::all()
+                .iter()
+                .map(|option| (option.key().into(), option.description().map(String::from)))
+                .collect(),
+        );
+        self.insert(
+            id.into(),
+            instructions.into(),
+            "choice",
+            Some(Criteria::Map(criteria)),
+        )
+    }
+
+    /// Adds a score question backed by static levels.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
+    pub fn score<L: Levels>(
+        &mut self,
+        id: impl Into<String>,
+        instructions: impl Into<Instructions>,
+    ) -> Result<Handle<ScoreQ<L>>, Error> {
+        let () = L::COUNT_OK;
+        let criteria = L::all()
+            .iter()
+            .map(|level| level.description().into())
+            .collect();
+        self.insert(
+            id.into(),
+            instructions.into(),
+            "score",
+            Some(Criteria::Levels(criteria)),
+        )
+    }
+
+    /// Adds a choice question backed by runtime-defined options.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
+    pub fn choice_dyn(
+        &mut self,
+        id: impl Into<String>,
+        instructions: impl Into<Instructions>,
+        options: DynOptions,
+    ) -> Result<Handle<DynChoiceQ>, Error> {
+        let (keys, descriptions) = options.into_parts();
+        let criteria = ChoiceCriteria(keys.into_iter().zip(descriptions).collect());
+        self.insert(
+            id.into(),
+            instructions.into(),
+            "choice",
+            Some(Criteria::Map(criteria)),
+        )
+    }
+
+    /// Adds a score question backed by runtime-defined levels.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
+    pub fn score_dyn(
+        &mut self,
+        id: impl Into<String>,
+        instructions: impl Into<Instructions>,
+        levels: DynLevels,
+    ) -> Result<Handle<DynScoreQ>, Error> {
+        self.insert(
+            id.into(),
+            instructions.into(),
+            "score",
+            Some(Criteria::Levels(levels.into_inner())),
+        )
+    }
+
+    /// Returns the number of questions in this batch.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Reports whether this batch has no questions.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    fn insert<Q: Question>(
+        &mut self,
+        id: String,
+        instructions: Instructions,
+        question_type: &'static str,
+        criteria: Option<Criteria>,
+    ) -> Result<Handle<Q>, Error> {
+        if self.entries.iter().any(|entry| entry.id == id) {
+            return Err(Error::DuplicateId(id));
+        }
+        let handle = Handle {
+            idx: self.entries.len() as u32,
+            batch: self.batch,
+            _q: PhantomData,
+        };
+        self.entries.push(QuestionEntry {
+            id,
+            instructions,
+            question_type,
+            criteria,
+        });
+        Ok(handle)
+    }
+}
+
+impl Default for Questions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Encodes a Jev request body without performing network I/O.
+///
+/// ```
+/// use jevrs_core::{Model, Questions, encode};
+///
+/// let mut questions = Questions::new();
+/// questions.noul("is_urgent", "Does this convey urgency?")?;
+/// let body = encode(
+///     &Model::LATEST,
+///     &"Help! My payouts have been failing for 3 days.",
+///     &questions,
+/// )?;
+/// assert!(!body.is_empty());
+/// # Ok::<(), jevrs_core::Error>(())
+/// ```
+///
+/// # Errors
+///
+/// Returns [`Error::NoQuestions`] for an empty builder or [`Error::Json`] if
+/// `state` cannot be serialized.
+pub fn encode(
+    model: &Model,
+    state: &impl Serialize,
+    questions: &Questions,
+) -> Result<Vec<u8>, Error> {
+    if questions.is_empty() {
+        return Err(Error::NoQuestions);
+    }
+    serde_json::to_vec(&WireRequest {
+        state,
+        model,
+        questions: WireQuestions(questions),
+    })
+    .map_err(Error::from)
+}
+
+pub(crate) struct WireRequest<'a, S> {
+    state: &'a S,
+    model: &'a Model,
+    questions: WireQuestions<'a>,
+}
+
+impl<S: Serialize> Serialize for WireRequest<'_, S> {
+    fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
+    where
+        Ser: Serializer,
+    {
+        let mut request = serializer.serialize_struct("Request", 3)?;
+        request.serialize_field("state", self.state)?;
+        request.serialize_field("model", self.model)?;
+        request.serialize_field("questions", &self.questions)?;
+        request.end()
+    }
+}
+
+pub(crate) struct WireQuestions<'a>(&'a Questions);
+
+impl Serialize for WireQuestions<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut questions = serializer.serialize_map(Some(self.0.entries.len()))?;
+        for entry in &self.0.entries {
+            questions.serialize_entry(&entry.id, &WireQuestion(entry))?;
+        }
+        questions.end()
+    }
+}
+
+pub(crate) struct WireQuestion<'a>(&'a QuestionEntry);
+
+impl Serialize for WireQuestion<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let field_count = if self.0.criteria.is_some() { 3 } else { 2 };
+        let mut question = serializer.serialize_struct("Question", field_count)?;
+        question.serialize_field("type", self.0.question_type)?;
+        question.serialize_field("instructions", &self.0.instructions)?;
+        if let Some(criteria) = &self.0.criteria {
+            question.serialize_field("criteria", criteria)?;
+        }
+        question.end()
+    }
+}
+
+struct QuestionEntry {
+    id: String,
+    instructions: Instructions,
+    question_type: &'static str,
+    criteria: Option<Criteria>,
+}
+
+enum Criteria {
+    Map(ChoiceCriteria),
+    Levels(Vec<String>),
+}
+
+impl Serialize for Criteria {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Map(criteria) => criteria.serialize(serializer),
+            Self::Levels(criteria) => criteria.serialize(serializer),
+        }
+    }
+}
+
+struct ChoiceCriteria(Vec<(String, Option<String>)>);
+
+impl Serialize for ChoiceCriteria {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut criteria = serializer.serialize_map(Some(self.0.len()))?;
+        for (key, description) in &self.0 {
+            criteria.serialize_entry(key, description)?;
+        }
+        criteria.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::{format, string::String};
+
+    use serde_json::{Value, json};
+
+    use super::{Handle, Questions, encode};
+    use crate::{
+        DynLevels, DynOptions, Error, Model, NoulQ, Question,
+        test_support::{Dept, Frustration},
+    };
+
+    struct NotDebugQ;
+
+    impl Question for NotDebugQ {
+        type Answer = ();
+    }
+
+    fn encoded_value(state: &impl serde::Serialize, questions: &Questions) -> Value {
+        serde_json::from_slice(&encode(&Model::LATEST, state, questions).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn triage_request_matches_the_spec() {
+        let mut questions = Questions::new();
+        questions
+            .noul_with(
+                "is_urgent",
+                "Does this convey urgency?",
+                "Explicitly time-sensitive",
+                "No urgency expressed",
+            )
+            .unwrap();
+        questions
+            .choice::<Dept>("department", "Which team should handle this?")
+            .unwrap();
+        questions
+            .score::<Frustration>("frustration", "How frustrated is the customer?")
+            .unwrap();
+
+        assert_eq!(
+            encoded_value(
+                &"Help! My payouts have been failing for 3 days.",
+                &questions
+            ),
+            json!({
+                "state": "Help! My payouts have been failing for 3 days.",
+                "model": "jev-latest",
+                "questions": {
+                    "is_urgent": {
+                        "type": "noul",
+                        "instructions": "Does this convey urgency?",
+                        "criteria": {
+                            "true": "Explicitly time-sensitive",
+                            "false": "No urgency expressed"
+                        }
+                    },
+                    "department": {
+                        "type": "choice",
+                        "instructions": "Which team should handle this?",
+                        "criteria": {
+                            "billing": "Payments, invoicing, refunds",
+                            "technical": "Bugs, outages, integrations",
+                            "sales": null
+                        }
+                    },
+                    "frustration": {
+                        "type": "score",
+                        "instructions": "How frustrated is the customer?",
+                        "criteria": ["Calm", "Frustrated", "Very angry"]
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn noul_omits_or_emits_criteria_as_requested() {
+        let mut plain = Questions::new();
+        plain.noul("urgent", "Is this urgent?").unwrap();
+        assert_eq!(
+            encoded_value(&"state", &plain)["questions"]["urgent"],
+            json!({"type": "noul", "instructions": "Is this urgent?"})
+        );
+
+        let mut described = Questions::new();
+        described
+            .noul_with("urgent", "Is this urgent?", "Urgent", "Not urgent")
+            .unwrap();
+        assert_eq!(
+            encoded_value(&"state", &described)["questions"]["urgent"]["criteria"],
+            json!({"true": "Urgent", "false": "Not urgent"})
+        );
+    }
+
+    #[test]
+    fn dynamic_questions_encode_their_criteria() {
+        let mut questions = Questions::new();
+        questions
+            .choice_dyn(
+                "department",
+                "Choose a team",
+                DynOptions::new([
+                    ("billing".into(), Some("Payments".into())),
+                    ("sales".into(), None),
+                ])
+                .unwrap(),
+            )
+            .unwrap();
+        questions
+            .score_dyn(
+                "frustration",
+                "Rate frustration",
+                DynLevels::new(["Calm".into(), "Angry".into()]).unwrap(),
+            )
+            .unwrap();
+
+        let value = encoded_value(&"state", &questions);
+        assert_eq!(
+            value["questions"]["department"]["criteria"],
+            json!({"billing": "Payments", "sales": null})
+        );
+        assert_eq!(
+            value["questions"]["frustration"]["criteria"],
+            json!(["Calm", "Angry"])
+        );
+    }
+
+    #[test]
+    fn state_accepts_string_object_and_array() {
+        let mut questions = Questions::new();
+        questions.noul("urgent", "Is this urgent?").unwrap();
+
+        assert_eq!(encoded_value(&"text", &questions)["state"], json!("text"));
+        assert_eq!(
+            encoded_value(&json!({"message": "text"}), &questions)["state"],
+            json!({"message": "text"})
+        );
+        assert_eq!(
+            encoded_value(&json!(["first", "second"]), &questions)["state"],
+            json!(["first", "second"])
+        );
+    }
+
+    #[test]
+    fn duplicate_ids_are_rejected_without_adding_an_entry() {
+        let mut questions = Questions::new();
+        questions.noul("urgent", "First").unwrap();
+        let error = questions.noul("urgent", "Second").err().unwrap();
+        assert!(matches!(error, Error::DuplicateId(id) if id == "urgent"));
+        assert_eq!(questions.len(), 1);
+    }
+
+    #[test]
+    fn empty_batches_are_rejected_at_encode_time() {
+        assert!(matches!(
+            encode(&Model::LATEST, &"state", &Questions::new()),
+            Err(Error::NoQuestions)
+        ));
+    }
+
+    #[test]
+    fn builders_have_distinct_batch_ids() {
+        let mut first = Questions::new();
+        let first_handle = first.noul("first", "First").unwrap();
+        let mut second = Questions::new();
+        let second_handle = second.noul("second", "Second").unwrap();
+        assert_ne!(first_handle.batch, second_handle.batch);
+    }
+
+    #[test]
+    fn handles_are_copy_and_debug_without_marker_bounds() {
+        fn assert_copy<T: Copy>() {}
+        fn assert_debug<T: core::fmt::Debug>() {}
+
+        assert_copy::<Handle<NoulQ>>();
+        assert_debug::<Handle<NotDebugQ>>();
+
+        let mut questions = Questions::new();
+        let handle = questions.noul("urgent", "Is this urgent?").unwrap();
+        let debug = format!("{handle:?}");
+        assert!(debug.contains("idx: 0"));
+        assert!(debug.contains("batch: BatchId("));
+    }
+
+    #[test]
+    fn choice_criteria_keep_option_order_on_the_wire() {
+        let mut questions = Questions::new();
+        questions
+            .choice::<Dept>("department", "Choose a team")
+            .unwrap();
+        let json =
+            String::from_utf8(encode(&Model::LATEST, &"state", &questions).unwrap()).unwrap();
+        let billing = json.find("billing").unwrap();
+        let technical = json.find("technical").unwrap();
+        let sales = json.find("sales").unwrap();
+        assert!(billing < technical && technical < sales);
+    }
+}

@@ -188,6 +188,10 @@ impl DynOptions {
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
+
+    pub(crate) fn into_parts(self) -> (Vec<String>, Vec<Option<String>>) {
+        (self.keys, self.descriptions)
+    }
 }
 
 /// A runtime-defined ordered scoring scale.
@@ -231,6 +235,10 @@ impl DynLevels {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub(crate) fn into_inner(self) -> Vec<String> {
+        self.0
     }
 }
 
