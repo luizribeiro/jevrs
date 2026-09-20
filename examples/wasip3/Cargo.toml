@@ -15,6 +15,7 @@ workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", target_env = "p3"))'.dependencies]
 jevrs = { path = "../../crates/jevrs", version = "0.1.0", default-features = false, features = [
+  "derive",
   "wasip3",
 ] }
 wasip3 = "0.9"
