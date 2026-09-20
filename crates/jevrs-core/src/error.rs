@@ -21,6 +21,12 @@ pub enum Error {
         /// The violated criteria rule.
         reason: &'static str,
     },
+    /// The client configuration cannot produce a valid request.
+    #[error("the client configuration is invalid: {reason}")]
+    Config {
+        /// The invalid setting and why it cannot be used.
+        reason: String,
+    },
     /// Authentication failed with HTTP status 401 or 403.
     #[error("authentication failed (HTTP {status}): {detail}")]
     Auth {
@@ -323,6 +329,18 @@ mod tests {
             panic!("expected Http, got {error:?}");
         };
         assert_http_parts(&error, *status, detail, body, error_type, message);
+    }
+
+    #[test]
+    fn config_error_identifies_the_invalid_setting() {
+        let error = Error::Config {
+            reason: "base URL is malformed".into(),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "the client configuration is invalid: base URL is malformed"
+        );
     }
 
     #[test]
