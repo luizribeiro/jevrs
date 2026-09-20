@@ -18,3 +18,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Milestone 3 WASI HTTP 0.2 transport, monotonic-clock retry sleep,
   `Client::wasip2()`, runnable component example, and fixture-backed Wasmtime
   smoke test.
+- Milestone 4 WASI HTTP 0.3 async transport, monotonic-clock retry sleep,
+  `Client::wasip3()`, runnable component example, and fixture-backed Wasmtime
+  smoke test on the pinned nightly toolchain.
