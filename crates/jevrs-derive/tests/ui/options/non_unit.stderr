@@ -1,0 +1,5 @@
+error: option variant `Billing` must be a unit variant; remove its fields
+ --> tests/ui/options/non_unit.rs:5:5
+  |
+5 |     Billing(String),
+  |     ^^^^^^^^^^^^^^^

@@ -1,0 +1,16 @@
+error: `Options` supports at most 255 variants; `TooMany` has 256
+  --> tests/ui/options/too_many.rs:6:14
+   |
+ 6 |           enum TooMany {
+   |                ^^^^^^^
+...
+12 | / too_many_options!(
+13 | |     V000, V001, V002, V003, V004, V005, V006, V007, V008, V009,
+14 | |     V010, V011, V012, V013, V014, V015, V016, V017, V018, V019,
+15 | |     V020, V021, V022, V023, V024, V025, V026, V027, V028, V029,
+...  |
+38 | |     V250, V251, V252, V253, V254, V255,
+39 | | );
+   | |_- in this macro invocation
+   |
+   = note: this error originates in the macro `too_many_options` (in Nightly builds, run with -Z macro-backtrace for more info)

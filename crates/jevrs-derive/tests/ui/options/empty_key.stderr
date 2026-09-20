@@ -1,0 +1,5 @@
+error: option key must not be empty; provide a non-empty `key`
+ --> tests/ui/options/empty_key.rs:5:17
+  |
+5 |     #[jev(key = "")]
+  |                 ^^

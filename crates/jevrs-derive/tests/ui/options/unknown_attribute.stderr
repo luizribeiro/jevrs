@@ -1,0 +1,5 @@
+error: unknown `jev` attribute; use `key = "…"` or `desc = "…"`
+ --> tests/ui/options/unknown_attribute.rs:5:11
+  |
+5 |     #[jev(label = "Billing")]
+  |           ^^^^^

@@ -1,0 +1,5 @@
+error: duplicate option key `billing` from `Billing`; give this variant a unique `#[jev(key = "…")]`
+ --> tests/ui/options/duplicate_key.rs:6:17
+  |
+6 |     #[jev(key = "billing")]
+  |                 ^^^^^^^^^

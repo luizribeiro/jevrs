@@ -16,3 +16,8 @@ workspace = true
 syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
+
+[dev-dependencies]
+jevrs = { path = "../jevrs" }
+jevrs-core = { path = "../jevrs-core" }
+trybuild = "1"
