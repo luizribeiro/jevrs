@@ -1,6 +1,9 @@
 //! Live API coverage and fixture recording for the native client.
 
-#![cfg(any(feature = "reqwest", feature = "native-tls"))]
+#![cfg(all(
+    any(feature = "reqwest", feature = "native-tls"),
+    not(target_arch = "wasm32")
+))]
 
 use std::sync::{Arc, Mutex};
 

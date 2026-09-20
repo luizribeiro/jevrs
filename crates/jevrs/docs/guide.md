@@ -179,13 +179,14 @@ assert_eq!(
 # Transports
 
 The default `reqwest` feature provides [`Client::reqwest`],
-[`ReqwestTransport`], and [`TokioSleep`] for native Tokio applications. The
-`wasip2` feature provides `Client::wasip2` and a synchronous WASI HTTP 0.2
-transport on `wasm32-wasip2`; see the
+[`ReqwestTransport`], and [`TokioSleep`] for native Tokio applications. A
+synchronous WASI HTTP 0.2 transport is selected automatically on
+`wasm32-wasip2`; see the
 [`wasip2` example](https://github.com/luizribeiro/jevrs/tree/main/examples/wasip2).
-The shipped `wasip3` feature provides `Client::wasip3` and an asynchronous WASI
-HTTP 0.3 transport on `wasm32-wasip3`; see the
+An asynchronous WASI HTTP 0.3 transport is selected automatically on
+`wasm32-wasip3`; see the
 [`wasip3` example](https://github.com/luizribeiro/jevrs/tree/main/examples/wasip3).
+Neither WASI transport needs a feature flag.
 
 Implement [`Transport`] when you already have an HTTP stack. The client gives
 it a complete `http::Request<Vec<u8>>`, including authorization. Return the
@@ -256,8 +257,6 @@ let client = Client::reqwest()
 | `derive` | yes | The `Options`, `Levels`, and `Questions` derives. |
 | `reqwest` | yes | Native HTTP with reqwest's rustls backend and Tokio sleep. |
 | `native-tls` | no | Native HTTP with the platform TLS backend. |
-| `wasip2` | no | WASI HTTP 0.2 components on `wasm32-wasip2`. |
-| `wasip3` | no | Draft WASI HTTP 0.3 components on `wasm32-wasip3`. |
 | `test-util` | no | [`MockTransport`] and [`MockSleep`] in downstream tests. |
 | `web` | no | Reserved; it does not provide a browser transport yet. |
 

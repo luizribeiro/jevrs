@@ -117,7 +117,7 @@
             name = "wasip2-build-hook";
             text = ''
               cargo build -p jevrs-core --target wasm32-wasip2 --locked
-              cargo clippy -p jevrs --no-default-features --features wasip2 --target wasm32-wasip2 --all-targets --locked -- -D warnings
+              cargo clippy -p jevrs --target wasm32-wasip2 --all-targets --locked -- -D warnings
             '';
           };
           wasip2-smoke = cargoHook {
@@ -130,7 +130,7 @@
             runtimeInputs = [ pkgs.wasmtime ];
             files = wasip3Files;
             text = ''
-              nix develop .#nightly -c cargo clippy -p jevrs --no-default-features --features wasip3 --target wasm32-wasip3 --all-targets --locked -- -D warnings
+              nix develop .#nightly -c cargo clippy -p jevrs --target wasm32-wasip3 --all-targets --locked -- -D warnings
               cargo xtask wasi-smoke --target wasip3
             '';
           };

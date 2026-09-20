@@ -4,7 +4,7 @@
 //! draft WASI 0.3 interfaces. Build it with the pinned nightly shell:
 //!
 //! ```text
-//! nix develop .#nightly -c cargo build -p jevrs --no-default-features --features wasip3 --target wasm32-wasip3
+//! nix develop .#nightly -c cargo build -p jevrs --target wasm32-wasip3
 //! ```
 
 use core::fmt;
@@ -24,7 +24,7 @@ use crate::{Sleep, Transport};
 ///
 /// This type owns only plain data, so it can cross the client's `Send` and
 /// `Sync` error boundary without retaining a WASI resource handle.
-#[cfg_attr(docsrs, doc(cfg(feature = "wasip3")))]
+#[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p3"))))]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Wasip3Error {
@@ -64,7 +64,7 @@ impl From<ErrorCode> for Wasip3Error {
 /// # Ok(())
 /// # }
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "wasip3")))]
+#[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p3"))))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Wasip3Transport;
 
@@ -103,7 +103,7 @@ impl Transport for Wasip3Transport {
 /// let builder = Client::builder(Wasip3Transport).sleep(Wasip3Sleep);
 /// # let _ = builder;
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "wasip3")))]
+#[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p3"))))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Wasip3Sleep;
 
