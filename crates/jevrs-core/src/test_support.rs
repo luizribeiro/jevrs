@@ -32,7 +32,7 @@ impl Indexed for Dept {
 
 impl Options for Dept {
     const N: usize = 3;
-    type Map<T: 'static> = ArrayMap<Self, T, 3>;
+    type Map<T: Send + Sync + 'static> = ArrayMap<Self, T, 3>;
 
     fn key(self) -> &'static str {
         match self {
@@ -57,7 +57,7 @@ impl Options for Dept {
             .find(|option| option.key() == key)
     }
 
-    fn map_from_fn<T: 'static>(mut f: impl FnMut(Self) -> T) -> Self::Map<T> {
+    fn map_from_fn<T: Send + Sync + 'static>(mut f: impl FnMut(Self) -> T) -> Self::Map<T> {
         ArrayMap::new([f(Self::Billing), f(Self::Technical), f(Self::Sales)])
     }
 }
@@ -81,7 +81,7 @@ impl Indexed for Frustration {
 
 impl Levels for Frustration {
     const N: usize = 3;
-    type Map<T: 'static> = ArrayMap<Self, T, 3>;
+    type Map<T: Send + Sync + 'static> = ArrayMap<Self, T, 3>;
 
     fn description(self) -> &'static str {
         match self {
@@ -95,7 +95,7 @@ impl Levels for Frustration {
         Self::all().get(index).copied()
     }
 
-    fn map_from_fn<T: 'static>(mut f: impl FnMut(Self) -> T) -> Self::Map<T> {
+    fn map_from_fn<T: Send + Sync + 'static>(mut f: impl FnMut(Self) -> T) -> Self::Map<T> {
         ArrayMap::new([f(Self::Calm), f(Self::Frustrated), f(Self::VeryAngry)])
     }
 }

@@ -11,7 +11,7 @@ fn nearest_index(expected: f64, maximum: usize) -> usize {
 /// Binds a question marker to the answer type returned for it.
 pub trait Question: 'static {
     /// The answer produced for this question kind.
-    type Answer: 'static;
+    type Answer: Send + Sync + 'static;
 }
 
 /// Marker for a yes/no question.

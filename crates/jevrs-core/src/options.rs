@@ -19,7 +19,7 @@ const LEVELS_TOO_MANY: &str = "levels must contain at most 10 entries";
 /// Derive implementations use this shared contract for both [`Options`] and
 /// [`Levels`]. Each value in [`Indexed::all`] must occupy the position returned
 /// by [`Indexed::index`].
-pub trait Indexed: Copy + Eq + 'static {
+pub trait Indexed: Copy + Eq + Send + Sync + 'static {
     /// Returns every value in canonical index order.
     fn all() -> &'static [Self];
 
@@ -47,7 +47,7 @@ pub trait Indexed: Copy + Eq + 'static {
 ///
 /// impl Options for Department {
 ///     const N: usize = 3;
-///     type Map<T: 'static> = ArrayMap<Self, T, 3>;
+///     type Map<T: Send + Sync + 'static> = ArrayMap<Self, T, 3>;
 ///     fn key(self) -> &'static str {
 ///         match self {
 ///             Self::Billing => "billing",
@@ -59,7 +59,7 @@ pub trait Indexed: Copy + Eq + 'static {
 ///     fn from_key(key: &str) -> Option<Self> {
 ///         Self::all().iter().copied().find(|option| option.key() == key)
 ///     }
-///     fn map_from_fn<T: 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T> {
+///     fn map_from_fn<T: Send + Sync + 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T> {
 ///         let mut f = f;
 ///         ArrayMap::new([f(Self::Billing), f(Self::Technical), f(Self::Sales)])
 ///     }
@@ -73,7 +73,11 @@ pub trait Options: Indexed {
     const COUNT_OK: () = assert!(Self::N >= 1 && Self::N <= 255);
 
     /// Dense storage containing one value per choice.
-    type Map<T: 'static>: Index<Self, Output = T> + IndexMut<Self> + 'static;
+    type Map<T: Send + Sync + 'static>: Index<Self, Output = T>
+        + IndexMut<Self>
+        + Send
+        + Sync
+        + 'static;
 
     /// Returns the choice's wire key.
     fn key(self) -> &'static str;
@@ -85,7 +89,7 @@ pub trait Options: Indexed {
     fn from_key(key: &str) -> Option<Self>;
 
     /// Builds dense storage by calling `f` once per choice in index order.
-    fn map_from_fn<T: 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T>;
+    fn map_from_fn<T: Send + Sync + 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T>;
 }
 
 /// A statically defined ordered scoring scale.
@@ -97,7 +101,11 @@ pub trait Levels: Indexed + Ord {
     const COUNT_OK: () = assert!(Self::N >= 2 && Self::N <= 10);
 
     /// Dense storage containing one value per level.
-    type Map<T: 'static>: Index<Self, Output = T> + IndexMut<Self> + 'static;
+    type Map<T: Send + Sync + 'static>: Index<Self, Output = T>
+        + IndexMut<Self>
+        + Send
+        + Sync
+        + 'static;
 
     /// Returns the human-readable level description sent to the API.
     fn description(self) -> &'static str;
@@ -106,7 +114,7 @@ pub trait Levels: Indexed + Ord {
     fn from_index(index: usize) -> Option<Self>;
 
     /// Builds dense storage by calling `f` once per level in index order.
-    fn map_from_fn<T: 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T>;
+    fn map_from_fn<T: Send + Sync + 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T>;
 }
 
 /// A runtime-defined set of named choices.

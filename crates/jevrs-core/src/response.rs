@@ -15,7 +15,7 @@ use crate::{
     builder::{BatchId, Criteria},
 };
 
-pub(crate) type AnswerSlot = Box<dyn Any>;
+pub(crate) type AnswerSlot = Box<dyn Any + Send + Sync>;
 pub(crate) type Decoder = fn(&str, Option<&Criteria>, WireAnswer) -> Result<AnswerSlot, Error>;
 
 #[derive(Deserialize)]
@@ -471,7 +471,7 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{WireAnswer, WireResponse, decode};
+    use super::{Answers, WireAnswer, WireResponse, decode};
     use crate::{
         ChoiceAnswer, ChoiceQ, DynChoiceAnswer, DynChoiceQ, DynLevels, DynOptions, DynScoreAnswer,
         DynScoreQ, Error, Handle, Model, NoulAnswer, NoulQ, Questions, ScoreAnswer, ScoreQ, encode,
@@ -484,6 +484,12 @@ mod tests {
         Handle<ScoreQ<Frustration>>,
     );
     type DynamicHandles = (Handle<NoulQ>, Handle<DynChoiceQ>, Handle<DynScoreQ>);
+
+    #[test]
+    fn answers_are_send_and_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Answers>();
+    }
 
     fn static_triage() -> (Questions, StaticHandles) {
         let mut questions = Questions::new();
