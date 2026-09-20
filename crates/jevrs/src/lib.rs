@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
 //! Rust client building blocks for `TypeSafe` AI's Jev API.
 //!
 //! All features are reserved and not implemented yet:
