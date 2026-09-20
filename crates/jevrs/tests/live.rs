@@ -1,5 +1,7 @@
 //! Live API coverage and fixture recording for the native client.
 
+#![cfg(any(feature = "reqwest", feature = "native-tls"))]
+
 use std::sync::{Arc, Mutex};
 
 use http::{Request, Response, header::AUTHORIZATION};

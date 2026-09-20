@@ -64,6 +64,13 @@ mod retry;
 #[cfg(all(test, feature = "test-util"))]
 mod test_support;
 mod transport;
+#[cfg(all(feature = "wasip2", target_arch = "wasm32"))]
+mod wasip2;
+#[cfg(any(
+    all(feature = "wasip2", target_arch = "wasm32"),
+    all(feature = "wasip2", test)
+))]
+mod wasip2_conversion;
 
 pub use client::{Client, ClientBuilder, ModelInfo};
 pub use jevrs_core::*;
@@ -76,3 +83,6 @@ pub use mock::{MockError, MockSleep, MockTransport};
 pub use reqwest::{ReqwestTransport, TokioSleep};
 pub use retry::RetryPolicy;
 pub use transport::{MaybeSend, NoSleep, Sleep, Transport};
+#[cfg(all(feature = "wasip2", target_arch = "wasm32"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip2")))]
+pub use wasip2::{Wasip2Error, Wasip2Transport};

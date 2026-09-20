@@ -14,7 +14,7 @@ default = ["derive", "reqwest"]
 derive = ["dep:jevrs-derive"]
 reqwest = ["dep:reqwest", "dep:tokio", "reqwest/default-tls"]
 native-tls = ["dep:reqwest", "dep:tokio", "reqwest/native-tls"]
-wasip2 = []
+wasip2 = ["dep:wasi"]
 wasip3 = []
 web = []
 test-util = []
@@ -27,6 +27,9 @@ serde.workspace = true
 serde_json.workspace = true
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["time"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasi = { version = "0.14", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
