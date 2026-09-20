@@ -4,9 +4,13 @@
 extern crate alloc;
 
 mod error;
+mod options;
 mod probability;
+#[cfg(test)]
+pub(crate) mod test_support;
 mod types;
 
 pub use error::{Error, ErrorDetail, classify};
+pub use options::{ArrayMap, Indexed, Levels, Options};
 pub use probability::{Confidence, Probability};
 pub use types::{Instructions, Model, Usage};
