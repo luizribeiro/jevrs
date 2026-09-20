@@ -17,7 +17,10 @@ missing_docs = "warn"
 pedantic = "warn"
 
 [workspace.dependencies]
-serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+serde = { version = "1", default-features = false, features = [
+  "derive",
+  "alloc",
+] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 thiserror = { version = "2", default-features = false }
 http = "1"
