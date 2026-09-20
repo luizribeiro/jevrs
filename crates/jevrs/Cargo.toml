@@ -1,0 +1,23 @@
+[package]
+name = "jevrs"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["reqwest"]
+reqwest = []
+native-tls = []
+wasip2 = []
+wasip3 = []
+web = []
+test-util = []
+
+[dependencies]
+jevrs-core = { path = "../jevrs-core", version = "0.0.0" }
+http.workspace = true
