@@ -34,7 +34,7 @@
           ];
           targets = [ "wasm32-wasip2" ];
         };
-        cargoFiles = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs)$";
+        cargoFiles = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs|tests/fixtures/.*\\.json)$";
         cargoHook =
           {
             name,
