@@ -1,6 +1,11 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "examples/native-derive", "examples/native-dynamic"]
+members = [
+  "crates/*",
+  "examples/native-derive",
+  "examples/native-dynamic",
+  "xtask",
+]
 
 [workspace.package]
 edition = "2024"

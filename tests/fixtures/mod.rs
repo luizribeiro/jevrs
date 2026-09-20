@@ -146,5 +146,15 @@ fn path(name: &str, kind: &str) -> PathBuf {
 }
 
 fn directory() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    manifest
+        .ancestors()
+        .map(|ancestor| ancestor.join("tests/fixtures"))
+        .find(|candidate| candidate.is_dir())
+        .unwrap_or_else(|| {
+            panic!(
+                "could not locate tests/fixtures from {}",
+                manifest.display()
+            )
+        })
 }
