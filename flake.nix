@@ -86,6 +86,10 @@
             runtimeInputs = [ pkgs.cargo-nextest ];
             text = "cargo nextest run --workspace --all-features --locked";
           };
+          doctests = cargoHook {
+            name = "doctests-hook";
+            text = "cargo test --doc --workspace --all-features --locked";
+          };
           wasip2-build = cargoHook {
             name = "wasip2-build-hook";
             text = "cargo build -p jevrs-core --target wasm32-wasip2 --locked";
