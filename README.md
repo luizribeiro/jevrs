@@ -2,7 +2,7 @@
 
 `jevrs` is an async Rust client for `TypeSafe` AI's Jev (System One) API. It gives you typed question sets and answers, a runtime builder, configurable retries, and native or WASI transports over a portable sans-I/O core.
 
-`typesafe-rs` is the other Rust client. It requires reqwest and Tokio and builds questions from strings. `jevrs` has a sans-I/O core, typed questions and answers through derives, and WASI transports.
+Other community crates wrap the same API. `jevrs` is the one with a sans-I/O core, typed questions and answers through derives, and WASI transports.
 
 Set `TYPESAFE_API_KEY`, then:
 
