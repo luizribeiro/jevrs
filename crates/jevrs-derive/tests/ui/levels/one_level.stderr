@@ -1,0 +1,5 @@
+error: `Levels` requires at least 2 variants; `Frustration` has 1
+ --> tests/ui/levels/one_level.rs:4:6
+  |
+4 | enum Frustration {
+  |      ^^^^^^^^^^^

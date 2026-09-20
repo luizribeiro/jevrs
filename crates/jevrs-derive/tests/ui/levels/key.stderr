@@ -1,0 +1,5 @@
+error: `key` is only valid for Options; remove it from this level
+ --> tests/ui/levels/key.rs:8:11
+  |
+8 |     #[jev(key = "angry")]
+  |           ^^^

@@ -1,4 +1,4 @@
-error: `Options` requires at least one variant; add a unit variant
+error: `Options` requires at least one variant; add option variants
  --> tests/ui/options/no_variants.rs:4:6
   |
 4 | enum Dept {}

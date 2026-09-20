@@ -2,25 +2,14 @@ use std::collections::HashMap;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields};
+use syn::DeriveInput;
 
-use crate::attrs;
+use crate::{attrs, indexed};
 
 pub(crate) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
     let enum_attrs = attrs::container(&input.attrs)?;
-    let Data::Enum(data) = &input.data else {
-        return Err(syn::Error::new_spanned(
-            input,
-            "`Options` can only be derived for an enum; use a unit-variant enum",
-        ));
-    };
-    if data.variants.is_empty() {
-        return Err(syn::Error::new_spanned(
-            &input.ident,
-            "`Options` requires at least one variant; add a unit variant",
-        ));
-    }
-    let count = data.variants.len();
+    let source = indexed::variants(input, "Options", "option", "at least one variant")?;
+    let count = source.len();
     if count > 255 {
         return Err(syn::Error::new_spanned(
             &input.ident,
@@ -31,20 +20,11 @@ pub(crate) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
         ));
     }
 
-    let mut variants = Vec::with_capacity(data.variants.len());
-    let mut keys = HashMap::with_capacity(data.variants.len());
-    let mut key_values = Vec::with_capacity(data.variants.len());
-    let mut descriptions = Vec::with_capacity(data.variants.len());
-    for variant in &data.variants {
-        if !matches!(variant.fields, Fields::Unit) {
-            return Err(syn::Error::new_spanned(
-                variant,
-                format!(
-                    "option variant `{}` must be a unit variant; remove its fields",
-                    variant.ident
-                ),
-            ));
-        }
+    let mut variants = Vec::with_capacity(source.len());
+    let mut keys = HashMap::with_capacity(source.len());
+    let mut key_values = Vec::with_capacity(source.len());
+    let mut descriptions = Vec::with_capacity(source.len());
+    for variant in source {
         let parsed = attrs::variant(&variant.attrs, true)?;
         let (key, key_span) = parsed
             .key
@@ -64,6 +44,7 @@ pub(crate) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
 
     let ident = &input.ident;
     let path = enum_attrs.crate_path;
+    let indexed = indexed::implementation(input, &path, &variants);
     let description_arms = variants
         .iter()
         .zip(descriptions)
@@ -79,15 +60,7 @@ pub(crate) fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
     Ok(quote! {
         const _: () = assert!(#count >= 1 && #count <= 255);
 
-        impl #impl_generics #path::Indexed for #ident #ty_generics #where_clause {
-            fn all() -> &'static [Self] {
-                &[#(Self::#variants),*]
-            }
-
-            fn index(self) -> usize {
-                self as usize
-            }
-        }
+        #indexed
 
         impl #impl_generics #path::Options for #ident #ty_generics #where_clause {
             const N: usize = #count;

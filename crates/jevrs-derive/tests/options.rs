@@ -14,6 +14,13 @@ enum Dept {
     Sales,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Options, PartialEq)]
+enum ExplicitOptions {
+    A = 5,
+    B,
+    C = 12,
+}
+
 #[test]
 fn derives_the_triage_options() {
     assert_eq!(Dept::N, 3);
@@ -40,6 +47,14 @@ fn derives_the_triage_options() {
 
     let map = Dept::map_from_fn(Indexed::index);
     assert_eq!(map.into_inner(), [0, 1, 2]);
+}
+
+#[test]
+fn explicit_discriminants_keep_positional_indexes() {
+    assert_eq!(ExplicitOptions::A.index(), 0);
+    assert_eq!(ExplicitOptions::B.index(), 1);
+    assert_eq!(ExplicitOptions::C.index(), 2);
+    assert_eq!(ExplicitOptions::from_key("b"), Some(ExplicitOptions::B));
 }
 
 mod core_path {

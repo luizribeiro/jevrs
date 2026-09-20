@@ -1,0 +1,5 @@
+error: level variant `Angry` needs a description; add a doc comment or `#[jev(desc = "…")]`
+ --> tests/ui/levels/missing_description.rs:7:5
+  |
+7 |     Angry,
+  |     ^^^^^

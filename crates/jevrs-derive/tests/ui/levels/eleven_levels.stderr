@@ -1,0 +1,10 @@
+error: `Levels` supports at most 10 variants; `TooMany` has 11
+  --> tests/ui/levels/eleven_levels.rs:6:14
+   |
+ 6 |         enum TooMany {
+   |              ^^^^^^^
+...
+12 | eleven_levels!(L0, L1, L2, L3, L4, L5, L6, L7, L8, L9, L10);
+   | ----------------------------------------------------------- in this macro invocation
+   |
+   = note: this error originates in the macro `eleven_levels` (in Nightly builds, run with -Z macro-backtrace for more info)
