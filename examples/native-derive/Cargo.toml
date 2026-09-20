@@ -1,0 +1,14 @@
+[package]
+name = "native-derive"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+jevrs = { path = "../../crates/jevrs" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

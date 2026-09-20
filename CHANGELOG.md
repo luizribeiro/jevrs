@@ -13,3 +13,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   fixtures, and the `native-dynamic` example.
 - `Options` and `Levels` derives for static choice and scoring criteria, enabled
   by the default `derive` feature.
+- Typed question sets with `derive(Questions)`, `Answered<T>`, `Client::ask`,
+  and the `native-derive` example.

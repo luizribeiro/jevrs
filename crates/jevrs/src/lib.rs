@@ -1,22 +1,22 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 //! Rust client building blocks for `TypeSafe` AI's Jev API.
 //!
-//! The default `derive` feature provides [`Options`] and [`Levels`] derives for
-//! static criteria:
+//! The default `derive` feature provides a concise, typed path from question
+//! declarations to answers:
 //!
-//! ```
-//! use jevrs::{Levels, Model, Options, Questions, encode};
+//! ```no_run
+//! use jevrs::{Choice, Client, Levels, Noul, Options, Questions, Score};
 //!
-//! #[derive(Clone, Copy, Eq, Options, PartialEq)]
-//! enum Dept {
+//! #[derive(Clone, Copy, Debug, Eq, Options, PartialEq)]
+//! enum Department {
 //!     /// Payments, invoicing, refunds
 //!     Billing,
-//!     #[jev(key = "tech", desc = "Bugs, outages, integrations")]
+//!     /// Bugs, outages, integrations
 //!     Technical,
 //!     Sales,
 //! }
 //!
-//! #[derive(Clone, Copy, Eq, Levels, Ord, PartialEq, PartialOrd)]
+//! #[derive(Clone, Copy, Debug, Eq, Levels, Ord, PartialEq, PartialOrd)]
 //! enum Frustration {
 //!     /// Calm
 //!     Calm,
@@ -26,18 +26,28 @@
 //!     VeryAngry,
 //! }
 //!
-//! let mut questions = Questions::new();
-//! questions.choice::<Dept>("department", "Which team should handle this?")?;
-//! questions.score::<Frustration>(
-//!     "frustration_level",
-//!     "How frustrated is the customer?",
-//! )?;
-//! let state = serde_json::json!({
-//!     "message": "Help! My payouts have been failing for 3 days."
-//! });
-//! let request = encode(&Model::LATEST, &state, &questions)?;
-//! assert!(!request.is_empty());
-//! # Ok::<(), jevrs::Error>(())
+//! #[derive(Questions)]
+//! struct Triage {
+//!     #[jev(
+//!         noul = "Does this convey urgency?",
+//!         yes = "Explicitly time-sensitive",
+//!         no = "No urgency expressed"
+//!     )]
+//!     is_urgent: Noul,
+//!     #[jev(choice = "Which team should handle this?")]
+//!     department: Choice<Department>,
+//!     #[jev(score = "How frustrated is the customer?")]
+//!     frustration: Score<Frustration>,
+//! }
+//!
+//! # async fn run() -> Result<(), jevrs::Error> {
+//! let client = Client::reqwest().from_env()?.build()?;
+//! let triage = client
+//!     .ask::<Triage>(&"Help! My payouts have been failing for 3 days.")
+//!     .await?;
+//! println!("department: {:?}", triage.department.pick);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! Concrete transports are selected with crate features. With none enabled,
@@ -59,7 +69,7 @@ pub use client::{Client, ClientBuilder, ModelInfo};
 pub use jevrs_core::*;
 #[cfg(feature = "derive")]
 #[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
-pub use jevrs_derive::{Levels, Options};
+pub use jevrs_derive::{Levels, Options, Questions};
 #[cfg(feature = "test-util")]
 pub use mock::{MockError, MockSleep, MockTransport};
 #[cfg(any(feature = "reqwest", feature = "native-tls"))]

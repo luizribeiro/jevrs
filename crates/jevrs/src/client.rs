@@ -4,7 +4,9 @@ use http::{
     HeaderName, HeaderValue, Method, Request, Response, StatusCode,
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
 };
-use jevrs_core::{Answers, Error, ErrorDetail, Model, Questions, classify, decode, encode};
+use jevrs_core::{
+    Answered, Answers, Error, ErrorDetail, Model, QuestionSet, Questions, classify, decode, encode,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -72,6 +74,54 @@ impl Client<ReqwestTransport, TokioSleep> {
 }
 
 impl<T: Transport, S: Sleep> Client<T, S> {
+    /// Asks a statically declared question set using the configured model.
+    ///
+    /// The returned [`Answered`] value exposes generated fields directly while
+    /// retaining model and token-usage metadata.
+    ///
+    /// ```no_run
+    /// use jevrs::{Client, Noul, Questions};
+    ///
+    /// #[derive(Questions)]
+    /// struct Triage {
+    ///     #[jev(noul = "Does this convey urgency?")]
+    ///     is_urgent: Noul,
+    /// }
+    ///
+    /// # async fn run() -> Result<(), jevrs::Error> {
+    /// let client = Client::reqwest().from_env()?.build()?;
+    /// let triage = client
+    ///     .ask::<Triage>(&"Help! My payouts have been failing for 3 days.")
+    ///     .await?;
+    /// println!("urgent probability: {:.2}", triage.is_urgent.p.get());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a question-building, encoding, transport, HTTP, or decoding
+    /// [`Error`].
+    pub async fn ask<Q: QuestionSet>(&self, state: &impl Serialize) -> Result<Answered<Q>, Error> {
+        self.ask_with::<Q>(&self.model, state).await
+    }
+
+    /// Asks a statically declared question set with a model override.
+    ///
+    /// # Errors
+    ///
+    /// Returns a question-building, encoding, transport, HTTP, or decoding
+    /// [`Error`].
+    pub async fn ask_with<Q: QuestionSet>(
+        &self,
+        model: &Model,
+        state: &impl Serialize,
+    ) -> Result<Answered<Q>, Error> {
+        let (questions, handles) = Q::questions()?;
+        let answers = self.evaluate_with(model, state, &questions).await?;
+        Ok(Answered::from_answers(&handles, &answers))
+    }
+
     /// Evaluates `questions` using the client's configured model.
     ///
     /// # Errors
@@ -375,7 +425,10 @@ mod tests {
     use std::time::Duration;
 
     use http::{HeaderName, HeaderValue, Method, Response, header};
-    use jevrs_core::Model;
+    use jevrs_core::{
+        Answers, DynChoiceAnswer, DynChoiceQ, DynScoreAnswer, DynScoreQ, Handle, Model, NoulAnswer,
+        NoulQ, QuestionSet, Questions,
+    };
     use serde_json::{Value, json};
 
     use super::Client;
@@ -439,6 +492,63 @@ mod tests {
         assert_eq!(body["state"], fixtures::STATE);
         assert_eq!(body["model"], "jev-latest");
         assert_eq!(body["questions"].as_object().unwrap().len(), 3);
+    }
+
+    struct Triage;
+
+    struct TriageHandles {
+        is_urgent: Handle<NoulQ>,
+        department: Handle<DynChoiceQ>,
+        frustration: Handle<DynScoreQ>,
+    }
+
+    struct TriageAnswers {
+        is_urgent: NoulAnswer,
+        department: DynChoiceAnswer,
+        frustration: DynScoreAnswer,
+    }
+
+    impl QuestionSet for Triage {
+        type Handles = TriageHandles;
+        type Answers = TriageAnswers;
+
+        fn questions() -> Result<(Questions, Self::Handles), jevrs_core::Error> {
+            let (questions, is_urgent, department, frustration) = fixtures::triage();
+            Ok((
+                questions,
+                TriageHandles {
+                    is_urgent,
+                    department,
+                    frustration,
+                },
+            ))
+        }
+
+        fn answers(handles: &Self::Handles, answers: &Answers) -> Self::Answers {
+            TriageAnswers {
+                is_urgent: Clone::clone(answers.get(handles.is_urgent)),
+                department: Clone::clone(answers.get(handles.department)),
+                frustration: Clone::clone(answers.get(handles.frustration)),
+            }
+        }
+    }
+
+    #[test]
+    fn ask_sends_derived_shape_and_returns_typed_result() {
+        let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
+        let recorder = transport.clone();
+        let client = Client::builder(transport).api_key(KEY).build().unwrap();
+
+        let triage = block_on(client.ask::<Triage>(&fixtures::STATE)).unwrap();
+
+        let request = recorder.take_requests().pop().unwrap();
+        let body: Value = serde_json::from_slice(request.body()).unwrap();
+        assert_eq!(body, fixtures::load("triage", "request"));
+        assert!((triage.is_urgent.p.get() - 0.95).abs() < f64::EPSILON);
+        assert_eq!(triage.department.pick, "billing");
+        assert_eq!(triage.frustration.nearest(), 1);
+        assert_eq!(triage.model(), "jev-1.13.0");
+        assert_eq!(triage.usage().input_tokens, 414);
     }
 
     #[test]
