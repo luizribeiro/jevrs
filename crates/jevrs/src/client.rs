@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::{NoSleep, RetryPolicy, Sleep, Transport};
+#[cfg(any(feature = "reqwest", feature = "native-tls"))]
+use crate::{ReqwestTransport, TokioSleep};
 
 const DEFAULT_BASE_URL: &str = "https://api.typesafe.ai";
 const EVALUATE_PATH: &str = "/v1/systemone";
@@ -43,6 +45,29 @@ impl<T: Transport> Client<T, NoSleep> {
     /// Starts configuring a client with `transport` and no retries.
     pub fn builder(transport: T) -> ClientBuilder<T, NoSleep> {
         ClientBuilder::new(transport)
+    }
+}
+
+#[cfg(any(feature = "reqwest", feature = "native-tls"))]
+impl Client<ReqwestTransport, TokioSleep> {
+    /// Starts configuring a native client using reqwest and Tokio.
+    ///
+    /// Use this when an application runs on Tokio and does not need to
+    /// customize reqwest's client configuration.
+    ///
+    /// ```no_run
+    /// use jevrs::{Client, Error};
+    ///
+    /// # fn configured() -> Result<(), Error> {
+    /// let client = Client::reqwest().from_env()?.build()?;
+    /// # let _ = client;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
+    #[must_use]
+    pub fn reqwest() -> ClientBuilder<ReqwestTransport, TokioSleep> {
+        Client::<ReqwestTransport>::builder(ReqwestTransport::default()).sleep(TokioSleep)
     }
 }
 

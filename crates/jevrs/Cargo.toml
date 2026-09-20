@@ -11,8 +11,8 @@ workspace = true
 
 [features]
 default = ["reqwest"]
-reqwest = []
-native-tls = []
+reqwest = ["dep:reqwest", "dep:tokio", "reqwest/default-tls"]
+native-tls = ["dep:reqwest", "dep:tokio", "reqwest/native-tls"]
 wasip2 = []
 wasip3 = []
 web = []
@@ -23,3 +23,8 @@ jevrs-core = { path = "../jevrs-core", version = "0.0.0" }
 http.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["time"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
