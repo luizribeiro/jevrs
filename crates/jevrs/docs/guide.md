@@ -180,32 +180,13 @@ assert_eq!(
 
 The default transport follows the target: [`DefaultTransport`] resolves to
 `ReqwestTransport` on native targets, `Wasip2Transport` on `wasm32-wasip2`, and
-`Wasip3Transport` on `wasm32-wasip3`. Implement [`Transport`] and use
-[`ClientBuilder::new`] when you already have an HTTP stack. Mark only safe
-transport failures as retryable: a failure before any bytes reached the server,
-never one after a partial send.
+`Wasip3Transport` on `wasm32-wasip3`. See [`Transport`] for a worked example,
+and use [`ClientBuilder::new`] when you already have an HTTP stack. Mark only
+safe transport failures as retryable: a failure before any bytes reached the
+server, never one after a partial send.
 
 On docs.rs, use the target selector to view the WASI transports under
 `wasm32-wasip2` and `wasm32-wasip3`, since they do not exist in the host build.
-
-```
-use std::{convert::Infallible, future::Future};
-use http::{Request, Response};
-use jevrs::{MaybeSend, Transport};
-
-struct MyTransport;
-
-impl Transport for MyTransport {
-    type Error = Infallible;
-
-    fn send(
-        &self,
-        _request: Request<Vec<u8>>,
-    ) -> impl Future<Output = Result<Response<Vec<u8>>, Self::Error>> + MaybeSend {
-        async { Ok(Response::new(Vec::new())) }
-    }
-}
-```
 
 # Retries and errors
 
