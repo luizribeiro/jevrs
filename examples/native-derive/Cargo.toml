@@ -10,5 +10,5 @@ publish = false
 workspace = true
 
 [dependencies]
-jevrs = { path = "../../crates/jevrs" }
+jevrs = { path = "../../crates/jevrs", version = "0.0.0" }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

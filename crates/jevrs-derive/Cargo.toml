@@ -18,7 +18,7 @@ quote = "1"
 proc-macro2 = "1"
 
 [dev-dependencies]
-jevrs = { path = "../jevrs", default-features = false }
-jevrs-core = { path = "../jevrs-core" }
+jevrs = { path = "../jevrs", version = "0.0.0", default-features = false }
+jevrs-core = { path = "../jevrs-core", version = "0.0.0" }
 serde_json.workspace = true
 trybuild = "1"

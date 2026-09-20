@@ -23,3 +23,5 @@ jobs:
         run: nix flake check
       - name: Run pre-commit hooks
         run: nix develop -c pre-commit run --all-files --show-diff-on-failure
+      - name: Check dependency advisories
+        run: nix develop -c cargo deny check advisories

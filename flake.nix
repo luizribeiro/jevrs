@@ -99,6 +99,12 @@
             runtimeInputs = [ pkgs.cargo-nextest ];
             text = "cargo nextest run --workspace --all-features --locked";
           };
+          cargo-deny = cargoHook {
+            name = "cargo-deny-hook";
+            runtimeInputs = [ pkgs.cargo-deny ];
+            files = "(^|/)(Cargo\\.(toml|lock)|deny\\.toml)$";
+            text = "cargo deny check bans licenses sources";
+          };
           doctests = cargoHook {
             name = "doctests-hook";
             text = "cargo test --doc --workspace --all-features --locked";
@@ -164,6 +170,7 @@
             pkgs.wasmtime
             pkgs.wasm-tools
             pkgs.cargo-nextest
+            pkgs.cargo-deny
             pkgs.git-absorb
           ]
           ++ gitHooks.enabledPackages;
