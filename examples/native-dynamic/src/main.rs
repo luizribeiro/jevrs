@@ -23,21 +23,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "department",
         "Which team should handle this?",
         DynOptions::new([
-            (
-                "billing".into(),
-                Some("Payments, invoicing, refunds".into()),
-            ),
-            (
-                "technical".into(),
-                Some("Bugs, outages, integrations".into()),
-            ),
-            ("sales".into(), None),
+            ("billing", Some("Payments, invoicing, refunds")),
+            ("technical", Some("Bugs, outages, integrations")),
+            ("sales", None),
         ])?,
     )?;
     let frustration = questions.score_dyn(
         "frustration",
         "How frustrated is the customer?",
-        DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()])?,
+        DynLevels::new(["Calm", "Frustrated", "Very angry"])?,
     )?;
 
     let client = Client::reqwest().from_env()?.build()?;

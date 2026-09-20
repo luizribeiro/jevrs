@@ -76,15 +76,15 @@ impl<Q: Question> fmt::Debug for Handle<Q> {
 ///     "department",
 ///     "Which team should handle this?",
 ///     DynOptions::new([
-///         ("billing".into(), Some("Payments, invoicing, refunds".into())),
-///         ("technical".into(), Some("Bugs, outages, integrations".into())),
-///         ("sales".into(), None),
+///         ("billing", Some("Payments, invoicing, refunds")),
+///         ("technical", Some("Bugs, outages, integrations")),
+///         ("sales", None),
 ///     ])?,
 /// )?;
 /// let frustration = questions.score_dyn(
 ///     "frustration",
 ///     "How frustrated is the customer?",
-///     DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()])?,
+///     DynLevels::new(["Calm", "Frustrated", "Very angry"])?
 /// )?;
 ///
 /// assert_eq!(questions.len(), 3);
@@ -544,7 +544,7 @@ mod tests {
             .choice_dyn(
                 "department",
                 array.clone(),
-                DynOptions::new([("billing".into(), None), ("sales".into(), None)]).unwrap(),
+                DynOptions::new([("billing", None::<&str>), ("sales", None)]).unwrap(),
             )
             .unwrap();
 
@@ -560,18 +560,14 @@ mod tests {
             .choice_dyn(
                 "department",
                 "Choose a team",
-                DynOptions::new([
-                    ("billing".into(), Some("Payments".into())),
-                    ("sales".into(), None),
-                ])
-                .unwrap(),
+                DynOptions::new([("billing", Some("Payments")), ("sales", None)]).unwrap(),
             )
             .unwrap();
         questions
             .score_dyn(
                 "frustration",
                 "Rate frustration",
-                DynLevels::new(["Calm".into(), "Angry".into()]).unwrap(),
+                DynLevels::new(["Calm", "Angry"]).unwrap(),
             )
             .unwrap();
 

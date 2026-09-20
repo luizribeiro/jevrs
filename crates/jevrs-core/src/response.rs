@@ -529,15 +529,9 @@ mod tests {
                 "department",
                 "Which team should handle this?",
                 DynOptions::new([
-                    (
-                        "billing".into(),
-                        Some("Payments, invoicing, refunds".into()),
-                    ),
-                    (
-                        "technical".into(),
-                        Some("Bugs, outages, integrations".into()),
-                    ),
-                    ("sales".into(), None),
+                    ("billing", Some("Payments, invoicing, refunds")),
+                    ("technical", Some("Bugs, outages, integrations")),
+                    ("sales", None),
                 ])
                 .unwrap(),
             )
@@ -546,7 +540,7 @@ mod tests {
             .score_dyn(
                 "frustration",
                 "How frustrated is the customer?",
-                DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()]).unwrap(),
+                DynLevels::new(["Calm", "Frustrated", "Very angry"]).unwrap(),
             )
             .unwrap();
         (questions, (urgent, department, frustration))
@@ -565,9 +559,9 @@ mod tests {
                 "department",
                 "Choose",
                 DynOptions::new([
-                    ("billing".into(), None),
-                    ("technical".into(), None),
-                    ("sales".into(), None),
+                    ("billing", None::<&str>),
+                    ("technical", None),
+                    ("sales", None),
                 ])
                 .unwrap(),
             )
@@ -589,7 +583,7 @@ mod tests {
             .score_dyn(
                 "frustration",
                 "Rate",
-                DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()]).unwrap(),
+                DynLevels::new(["Calm", "Frustrated", "Very angry"]).unwrap(),
             )
             .unwrap();
         questions
@@ -631,14 +625,14 @@ mod tests {
             .choice_dyn(
                 "dynamic_choice",
                 "Choose",
-                DynOptions::new([("first".into(), None), ("second".into(), None)]).unwrap(),
+                DynOptions::new([("first", None::<&str>), ("second", None)]).unwrap(),
             )
             .unwrap();
         questions
             .score_dyn(
                 "dynamic_score",
                 "Rate",
-                DynLevels::new(["Low".into(), "High".into()]).unwrap(),
+                DynLevels::new(["Low", "High"]).unwrap(),
             )
             .unwrap();
 

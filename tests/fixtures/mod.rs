@@ -38,15 +38,9 @@ pub(crate) fn triage() -> Triage {
             "department",
             "Which team should handle this?",
             DynOptions::new([
-                (
-                    "billing".into(),
-                    Some("Payments, invoicing, refunds".into()),
-                ),
-                (
-                    "technical".into(),
-                    Some("Bugs, outages, integrations".into()),
-                ),
-                ("sales".into(), None),
+                ("billing", Some("Payments, invoicing, refunds")),
+                ("technical", Some("Bugs, outages, integrations")),
+                ("sales", None),
             ])
             .unwrap(),
         )
@@ -55,7 +49,7 @@ pub(crate) fn triage() -> Triage {
         .score_dyn(
             "frustration",
             "How frustrated is the customer?",
-            DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()]).unwrap(),
+            DynLevels::new(["Calm", "Frustrated", "Very angry"]).unwrap(),
         )
         .unwrap();
     (questions, urgent, department, frustration)

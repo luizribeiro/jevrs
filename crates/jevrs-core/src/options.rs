@@ -138,8 +138,8 @@ impl DynOptions {
     /// use jevrs_core::DynOptions;
     ///
     /// let options = DynOptions::new([
-    ///     ("billing".into(), Some("Payments and refunds".into())),
-    ///     ("sales".into(), None),
+    ///     ("billing", Some("Payments and refunds")),
+    ///     ("sales", None),
     /// ])?;
     /// assert_eq!(options.index_of("sales"), Some(1));
     /// # Ok::<(), jevrs_core::Error>(())
@@ -149,10 +149,16 @@ impl DynOptions {
     ///
     /// Returns [`Error::InvalidCriteria`] when there are no options, there are
     /// more than 255, or a key is empty or duplicated.
-    pub fn new(options: impl IntoIterator<Item = (String, Option<String>)>) -> Result<Self, Error> {
+    pub fn new<K, D, I>(options: I) -> Result<Self, Error>
+    where
+        K: Into<String>,
+        D: Into<String>,
+        I: IntoIterator<Item = (K, Option<D>)>,
+    {
         let mut keys = Vec::new();
         let mut descriptions = Vec::new();
         for (key, description) in options {
+            let key = key.into();
             if key.is_empty() {
                 return Err(invalid_criteria(OPTION_KEY_EMPTY));
             }
@@ -163,7 +169,7 @@ impl DynOptions {
                 return Err(invalid_criteria(OPTIONS_TOO_MANY));
             }
             keys.push(key);
-            descriptions.push(description);
+            descriptions.push(description.map(Into::into));
         }
         if keys.is_empty() {
             return Err(invalid_criteria(OPTIONS_TOO_FEW));
@@ -223,11 +229,7 @@ impl DynLevels {
     /// ```
     /// use jevrs_core::DynLevels;
     ///
-    /// let levels = DynLevels::new([
-    ///     "Calm".into(),
-    ///     "Frustrated".into(),
-    ///     "Very angry".into(),
-    /// ])?;
+    /// let levels = DynLevels::new(["Calm", "Frustrated", "Very angry"])?;
     /// assert_eq!(levels.levels()[1], "Frustrated");
     /// # Ok::<(), jevrs_core::Error>(())
     /// ```
@@ -236,8 +238,12 @@ impl DynLevels {
     ///
     /// Returns [`Error::InvalidCriteria`] unless the scale contains between
     /// two and ten levels.
-    pub fn new(levels: impl IntoIterator<Item = String>) -> Result<Self, Error> {
-        let mut levels = levels.into_iter().take(11).collect::<Vec<_>>();
+    pub fn new<S: Into<String>>(levels: impl IntoIterator<Item = S>) -> Result<Self, Error> {
+        let mut levels = levels
+            .into_iter()
+            .map(Into::into)
+            .take(11)
+            .collect::<Vec<_>>();
         if levels.len() < 2 {
             return Err(invalid_criteria(LEVELS_TOO_FEW));
         }
@@ -399,12 +405,13 @@ mod tests {
 
     #[test]
     fn dynamic_options_reject_every_invalid_shape() {
+        let empty: Vec<(String, Option<String>)> = Vec::new();
         assert_eq!(
-            invalid_reason(DynOptions::new(Vec::new()).unwrap_err()),
+            invalid_reason(DynOptions::new(empty).unwrap_err()),
             OPTIONS_TOO_FEW
         );
         let too_many = (0..256)
-            .map(|index| (index.to_string(), None))
+            .map(|index| (index.to_string(), None::<String>))
             .collect::<Vec<_>>();
         assert_eq!(
             invalid_reason(DynOptions::new(too_many).unwrap_err()),
@@ -412,14 +419,36 @@ mod tests {
         );
         assert_eq!(
             invalid_reason(
-                DynOptions::new([("billing".into(), None), ("billing".into(), None)]).unwrap_err()
+                DynOptions::new([("billing", None::<&str>), ("billing", None)]).unwrap_err()
             ),
             OPTION_KEY_DUPLICATE
         );
         assert_eq!(
-            invalid_reason(DynOptions::new([(String::new(), None)]).unwrap_err()),
+            invalid_reason(DynOptions::new([(String::new(), None::<String>)]).unwrap_err()),
             OPTION_KEY_EMPTY
         );
+    }
+
+    #[test]
+    fn dynamic_options_accept_borrowed_and_owned_strings() {
+        let borrowed =
+            DynOptions::new([("billing", Some("Payments and refunds")), ("sales", None)]).unwrap();
+        assert_eq!(
+            borrowed.description("billing"),
+            Some("Payments and refunds")
+        );
+
+        let owned = DynOptions::new([(
+            "technical".to_string(),
+            Some("Bugs and outages".to_string()),
+        )])
+        .unwrap();
+        assert_eq!(owned.keys(), &["technical"]);
+
+        let entries: Vec<(String, Option<String>)> =
+            vec![("sales".to_string(), Some("New accounts".to_string()))];
+        let from_vec = DynOptions::new(entries).unwrap();
+        assert_eq!(from_vec.description("sales"), Some("New accounts"));
     }
 
     #[test]
@@ -446,7 +475,7 @@ mod tests {
     #[test]
     fn dynamic_levels_validate_bounds_and_expose_accessors() {
         assert_eq!(
-            invalid_reason(DynLevels::new(vec!["Calm".into()]).unwrap_err()),
+            invalid_reason(DynLevels::new(["Calm"]).unwrap_err()),
             LEVELS_TOO_FEW
         );
         assert_eq!(
@@ -458,5 +487,14 @@ mod tests {
         assert_eq!(levels.len(), 10);
         assert_eq!(levels.levels().first().map(String::as_str), Some("0"));
         assert_eq!(levels.levels().last().map(String::as_str), Some("9"));
+    }
+
+    #[test]
+    fn dynamic_levels_accept_borrowed_and_owned_strings() {
+        let borrowed = DynLevels::new(["Calm", "Frustrated"]).unwrap();
+        assert_eq!(borrowed.levels(), &["Calm", "Frustrated"]);
+
+        let owned = DynLevels::new(["Calm".to_string(), "Frustrated".to_string()]).unwrap();
+        assert_eq!(owned.levels(), &["Calm", "Frustrated"]);
     }
 }
