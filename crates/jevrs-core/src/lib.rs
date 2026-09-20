@@ -4,5 +4,7 @@
 extern crate alloc;
 
 mod probability;
+mod types;
 
 pub use probability::{Confidence, Probability};
+pub use types::{Instructions, Model, Usage};
