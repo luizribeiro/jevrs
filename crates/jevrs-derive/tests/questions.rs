@@ -47,6 +47,9 @@ fn derives_triage_request_and_typed_answers() {
     let actual: serde_json::Value = serde_json::from_slice(&encoded).unwrap();
     let expected = fixtures::load("triage", "request");
     assert_eq!(actual, expected);
+    assert!(actual["questions"]["is_urgent"]["instructions"].is_string());
+    assert!(actual["questions"]["department"]["instructions"].is_string());
+    assert!(actual["questions"]["frustration"]["instructions"].is_string());
 
     let fixture = fixtures::load("triage", "response");
     let body = serde_json::to_vec(&fixture["body"]).unwrap();

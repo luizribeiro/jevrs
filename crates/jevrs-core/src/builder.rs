@@ -507,6 +507,25 @@ mod tests {
     }
 
     #[test]
+    fn structured_instructions_encode_verbatim() {
+        let object = json!({"task": "Assess urgency", "signals": ["deadline"]});
+        let array = json!(["Choose a team", {"prefer": "billing"}]);
+        let mut questions = Questions::new();
+        questions.noul("urgent", object.clone()).unwrap();
+        questions
+            .choice_dyn(
+                "department",
+                array.clone(),
+                DynOptions::new([("billing".into(), None), ("sales".into(), None)]).unwrap(),
+            )
+            .unwrap();
+
+        let encoded = encoded_value(&"state", &questions);
+        assert_eq!(encoded["questions"]["urgent"]["instructions"], object);
+        assert_eq!(encoded["questions"]["department"]["instructions"], array);
+    }
+
+    #[test]
     fn dynamic_questions_encode_their_criteria() {
         let mut questions = Questions::new();
         questions

@@ -2,6 +2,9 @@ use alloc::{borrow::Cow, string::String};
 use core::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
+
+use crate::Error;
 
 /// A Jev model name used for requests and reported by responses.
 ///
@@ -65,26 +68,65 @@ impl Default for Model {
     }
 }
 
-/// Natural-language guidance supplied with a Jev question.
+/// Guidance supplied with a Jev question as a JSON value.
+///
+/// String instructions can be constructed with [`From`]. Use [`Self::json`]
+/// to serialize structured application data, or [`Self::from`] when a
+/// [`Value`] is already available.
+///
+/// ```
+/// use jevrs_core::Instructions;
+/// use serde_json::json;
+///
+/// let instructions = Instructions::json(&json!({
+///     "task": "Assess urgency",
+///     "signals": ["deadline", "outage"],
+/// }))?;
+/// assert!(instructions.as_value().is_object());
+/// # Ok::<(), jevrs_core::Error>(())
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[repr(transparent)]
-pub struct Instructions(String);
+pub struct Instructions(Value);
+
+impl Instructions {
+    /// Serializes structured instructions to their JSON representation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Json`] if `value` cannot be represented as JSON.
+    pub fn json(value: &impl Serialize) -> Result<Self, Error> {
+        Ok(Self(serde_json::to_value(value)?))
+    }
+
+    /// Returns string instructions, or `None` for another JSON value.
+    #[must_use]
+    pub fn as_str(&self) -> Option<&str> {
+        self.0.as_str()
+    }
+
+    /// Returns the instructions as their JSON representation.
+    #[must_use]
+    pub const fn as_value(&self) -> &Value {
+        &self.0
+    }
+}
 
 impl From<&str> for Instructions {
     fn from(value: &str) -> Self {
-        Self(value.into())
+        Self(Value::String(value.into()))
     }
 }
 
 impl From<String> for Instructions {
     fn from(value: String) -> Self {
-        Self(value)
+        Self(Value::String(value))
     }
 }
 
-impl AsRef<str> for Instructions {
-    fn as_ref(&self) -> &str {
-        &self.0
+impl From<Value> for Instructions {
+    fn from(value: Value) -> Self {
+        Self(value)
     }
 }
 
@@ -124,11 +166,34 @@ mod tests {
     }
 
     #[test]
-    fn instructions_serialize_as_a_string() {
+    fn string_instructions_encode_verbatim() {
         let instructions = Instructions::from("Assess urgency");
+        assert_eq!(instructions.as_str(), Some("Assess urgency"));
         assert_eq!(
             serde_json::to_string(&instructions).unwrap(),
             r#""Assess urgency""#
         );
+    }
+
+    #[test]
+    fn object_instructions_encode_verbatim() {
+        let value = serde_json::json!({
+            "task": "Assess urgency",
+            "signals": ["deadline", "outage"]
+        });
+        let instructions = Instructions::json(&value).unwrap();
+
+        assert_eq!(instructions.as_str(), None);
+        assert_eq!(instructions.as_value(), &value);
+        assert_eq!(serde_json::to_value(instructions).unwrap(), value);
+    }
+
+    #[test]
+    fn array_instructions_encode_verbatim() {
+        let value = serde_json::json!(["Assess urgency", {"weight": 2}]);
+        let instructions = Instructions::from(value.clone());
+
+        assert_eq!(instructions.as_value(), &value);
+        assert_eq!(serde_json::to_value(instructions).unwrap(), value);
     }
 }
