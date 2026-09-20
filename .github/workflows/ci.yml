@@ -21,13 +21,5 @@ jobs:
           restore-prefixes-first-match: nix-${{ runner.os }}-
       - name: Check flake
         run: nix flake check
-      - name: Check formatting
-        run: nix develop -c cargo fmt --all --check
-      - name: Lint
-        run: nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warnings
-      - name: Test
-        run: nix develop -c cargo nextest run --workspace --all-features
-      - name: Build jevrs-core for WASI Preview 2
-        run: nix develop -c cargo build -p jevrs-core --target wasm32-wasip2
-      - name: Build documentation
-        run: nix develop -c env RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo doc --workspace --no-deps
+      - name: Run pre-commit hooks
+        run: nix develop -c pre-commit run --all-files --show-diff-on-failure
