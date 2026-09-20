@@ -8,6 +8,7 @@ mod error;
 mod options;
 mod probability;
 mod question;
+mod question_set;
 mod response;
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -18,8 +19,9 @@ pub use error::{Error, ErrorDetail, classify};
 pub use options::{ArrayMap, DynLevels, DynOptions, Indexed, Levels, Options};
 pub use probability::{Confidence, Probability};
 pub use question::{
-    ChoiceAnswer, ChoiceQ, DynChoiceAnswer, DynChoiceQ, DynScoreAnswer, DynScoreQ, NoulAnswer,
-    NoulQ, Question, ScoreAnswer, ScoreQ,
+    Choice, ChoiceAnswer, ChoiceQ, DynChoiceAnswer, DynChoiceQ, DynScoreAnswer, DynScoreQ, Noul,
+    NoulAnswer, NoulQ, Question, Score, ScoreAnswer, ScoreQ,
 };
+pub use question_set::{Answered, QuestionSet};
 pub use response::{Answers, decode};
 pub use types::{Instructions, Model, Usage};

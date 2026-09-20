@@ -34,6 +34,15 @@ pub struct DynChoiceQ;
 #[derive(Clone, Copy, Debug)]
 pub struct DynScoreQ;
 
+/// Readable alias for a yes/no question marker in a [`crate::QuestionSet`].
+pub type Noul = NoulQ;
+
+/// Readable alias for a static choice question marker in a [`crate::QuestionSet`].
+pub type Choice<O> = ChoiceQ<O>;
+
+/// Readable alias for a static score question marker in a [`crate::QuestionSet`].
+pub type Score<L> = ScoreQ<L>;
+
 impl Question for NoulQ {
     type Answer = NoulAnswer;
 }
