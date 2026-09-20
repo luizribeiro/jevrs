@@ -1,5 +1,11 @@
 # jevrs
 
+[![crates.io](https://img.shields.io/crates/v/jevrs.svg)](https://crates.io/crates/jevrs)
+[![docs.rs](https://docs.rs/jevrs/badge.svg)](https://docs.rs/jevrs)
+[![CI](https://github.com/luizribeiro/jevrs/actions/workflows/ci.yml/badge.svg)](https://github.com/luizribeiro/jevrs/actions/workflows/ci.yml)
+[![MSRV](https://img.shields.io/crates/msrv/jevrs.svg)](https://crates.io/crates/jevrs)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
+
 `jevrs` is an async Rust client for `TypeSafe` AI's Jev (System One) API. It gives you typed question sets and answers, a runtime builder, configurable retries, and native or WASI transports over a portable sans-I/O core.
 
 Set `TYPESAFE_API_KEY`, then:
