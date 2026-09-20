@@ -1,6 +1,6 @@
 # Overview
 
-Jev evaluates several typed questions against the same JSON state in one request. `jevrs` adds compile-time question sets, a runtime builder, retry control, and portable transports around that API. Other community crates wrap the same API. `jevrs` is the one with a sans-I/O core, typed questions and answers through derives, and WASI transports.
+Jev evaluates several typed questions against the same JSON state in one request. `jevrs` adds compile-time question sets, a runtime builder, retry control, and portable transports around that API.
 
 # Quick start
 
