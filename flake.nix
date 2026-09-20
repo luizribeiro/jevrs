@@ -144,7 +144,16 @@
             (cargoHook {
               name = "docsrs-hook";
               text = ''
-                nix develop .#nightly -c sh -c 'RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo doc --workspace --no-deps --all-features --locked'
+                nix develop .#nightly -c sh -c '
+                  RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo doc --workspace --no-deps --all-features --locked
+
+                  build_docs() {
+                    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo doc -p jevrs --no-deps --all-features --locked "$@"
+                  }
+
+                  build_docs --target wasm32-wasip2
+                  build_docs --target wasm32-wasip3
+                '
               '';
             })
             // {
