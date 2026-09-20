@@ -1,4 +1,4 @@
-//! Shows the runtime-defined triage flow in a WASI HTTP 0.2 component.
+//! Shows the typed triage flow with derives in a WASI HTTP 0.2 component.
 //!
 //! Build and run against the live API:
 //!
@@ -14,10 +14,46 @@
 //! ```
 
 #[cfg(target_arch = "wasm32")]
-use jevrs::{Client, DynLevels, DynOptions, Questions};
+use jevrs::{Choice, Client, Levels, Noul, Options, Questions, Score};
 
 #[cfg(target_arch = "wasm32")]
 const STATE: &str = "Help! My payouts have been failing for 3 days.";
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Clone, Copy, Debug, Eq, Options, PartialEq)]
+enum Department {
+    /// Payments, invoicing, refunds
+    Billing,
+    /// Bugs, outages, integrations
+    Technical,
+    Sales,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Clone, Copy, Debug, Eq, Levels, Ord, PartialEq, PartialOrd)]
+enum Frustration {
+    /// Calm
+    Calm,
+    /// Frustrated
+    Frustrated,
+    /// Very angry
+    VeryAngry,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Questions)]
+struct Triage {
+    #[jev(
+        noul = "Does this convey urgency?",
+        yes = "Explicitly time-sensitive",
+        no = "No urgency expressed"
+    )]
+    is_urgent: Noul,
+    #[jev(choice = "Which team should handle this?")]
+    department: Choice<Department>,
+    #[jev(score = "How frustrated is the customer?")]
+    frustration: Score<Frustration>,
+}
 
 #[cfg(target_arch = "wasm32")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,55 +62,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(target_arch = "wasm32")]
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let mut questions = Questions::new();
-    let urgent = questions.noul_with(
-        "is_urgent",
-        "Does this convey urgency?",
-        "Explicitly time-sensitive",
-        "No urgency expressed",
-    )?;
-    let department = questions.choice_dyn(
-        "department",
-        "Which team should handle this?",
-        DynOptions::new([
-            (
-                "billing".into(),
-                Some("Payments, invoicing, refunds".into()),
-            ),
-            (
-                "technical".into(),
-                Some("Bugs, outages, integrations".into()),
-            ),
-            ("sales".into(), None),
-        ])?,
-    )?;
-    let frustration = questions.score_dyn(
-        "frustration",
-        "How frustrated is the customer?",
-        DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()])?,
-    )?;
-
     let client = Client::wasip2().from_env()?.build()?;
-    let answers = client.evaluate(&STATE, &questions).await?;
+    let answers = client.ask::<Triage>(&STATE).await?;
 
     println!("model: {}", answers.model());
-    println!("urgent probability: {:.2}", answers[urgent].p.get());
+    println!("urgent probability: {:.2}", answers.is_urgent.p.get());
 
-    let department = &answers[department];
+    let department = &answers.department;
     println!(
         "department: {} (confidence {:.2})",
-        department.pick,
+        department.pick.key(),
         department.confidence.get()
     );
-    for (option, probability) in &department.probs {
-        println!("  {option}: {:.2}", probability.get());
+    for (option, probability) in department.probs.iter() {
+        println!("  {}: {:.2}", option.key(), probability.get());
     }
 
-    let frustration = &answers[frustration];
+    let frustration = &answers.frustration;
     println!(
         "frustration: {:.2} ({})",
         frustration.expected(),
-        frustration.legend[frustration.nearest()]
+        frustration.nearest().description()
     );
 
     let usage = answers.usage();
