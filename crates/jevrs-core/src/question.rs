@@ -91,7 +91,6 @@ pub struct ScoreAnswer<L: Levels> {
 }
 
 impl<L: Levels> ScoreAnswer<L> {
-    #[allow(dead_code)]
     pub(crate) fn new(expected: f64, probs: L::Map<Probability>, confidence: Confidence) -> Self {
         Self {
             expected,
@@ -150,7 +149,6 @@ pub struct DynScoreAnswer {
 }
 
 impl DynScoreAnswer {
-    #[allow(dead_code)]
     pub(crate) fn new(
         expected: f64,
         probs: Vec<Probability>,

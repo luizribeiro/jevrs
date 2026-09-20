@@ -13,6 +13,10 @@ use serde::{
 use crate::{
     ChoiceQ, DynChoiceQ, DynLevels, DynOptions, DynScoreQ, Error, Instructions, Levels, Model,
     NoulQ, Options, Question, ScoreQ,
+    response::{
+        AnswerSlot, Decoder, WireAnswer, decode_dynamic_choice, decode_dynamic_score, decode_noul,
+        decode_static_choice, decode_static_score,
+    },
 };
 
 static NEXT_BATCH_ID: AtomicU64 = AtomicU64::new(1);
@@ -81,7 +85,7 @@ impl<Q: Question> fmt::Debug for Handle<Q> {
 /// # Ok::<(), jevrs_core::Error>(())
 /// ```
 pub struct Questions {
-    entries: Vec<QuestionEntry>,
+    pub(crate) entries: Vec<QuestionEntry>,
     batch: BatchId,
 }
 
@@ -105,7 +109,7 @@ impl Questions {
         id: impl Into<String>,
         instructions: impl Into<Instructions>,
     ) -> Result<Handle<NoulQ>, Error> {
-        self.insert(id.into(), instructions.into(), "noul", None)
+        self.insert(id.into(), instructions.into(), "noul", None, decode_noul)
     }
 
     /// Adds a yes/no question with descriptions for both outcomes.
@@ -129,6 +133,7 @@ impl Questions {
             instructions.into(),
             "noul",
             Some(Criteria::Map(criteria)),
+            decode_noul,
         )
     }
 
@@ -154,6 +159,7 @@ impl Questions {
             instructions.into(),
             "choice",
             Some(Criteria::Map(criteria)),
+            decode_static_choice::<O>,
         )
     }
 
@@ -177,6 +183,7 @@ impl Questions {
             instructions.into(),
             "score",
             Some(Criteria::Levels(criteria)),
+            decode_static_score::<L>,
         )
     }
 
@@ -198,6 +205,7 @@ impl Questions {
             instructions.into(),
             "choice",
             Some(Criteria::Map(criteria)),
+            decode_dynamic_choice,
         )
     }
 
@@ -217,6 +225,7 @@ impl Questions {
             instructions.into(),
             "score",
             Some(Criteria::Levels(levels.into_inner())),
+            decode_dynamic_score,
         )
     }
 
@@ -239,6 +248,7 @@ impl Questions {
         instructions: Instructions,
         question_type: &'static str,
         criteria: Option<Criteria>,
+        decoder: Decoder,
     ) -> Result<Handle<Q>, Error> {
         if self.entries.iter().any(|entry| entry.id == id) {
             return Err(Error::DuplicateId(id));
@@ -253,6 +263,7 @@ impl Questions {
             instructions,
             question_type,
             criteria,
+            decoder,
         });
         Ok(handle)
     }
@@ -352,14 +363,23 @@ impl Serialize for WireQuestion<'_> {
     }
 }
 
-struct QuestionEntry {
-    id: String,
+pub(crate) struct QuestionEntry {
+    pub(crate) id: String,
     instructions: Instructions,
     question_type: &'static str,
     criteria: Option<Criteria>,
+    #[allow(dead_code)]
+    decoder: Decoder,
 }
 
-enum Criteria {
+impl QuestionEntry {
+    #[allow(dead_code)]
+    pub(crate) fn decode(&self, answer: WireAnswer) -> Result<AnswerSlot, Error> {
+        (self.decoder)(&self.id, self.criteria.as_ref(), answer)
+    }
+}
+
+pub(crate) enum Criteria {
     Map(ChoiceCriteria),
     Levels(Vec<String>),
 }
@@ -376,7 +396,7 @@ impl Serialize for Criteria {
     }
 }
 
-struct ChoiceCriteria(Vec<(String, Option<String>)>);
+pub(crate) struct ChoiceCriteria(pub(crate) Vec<(String, Option<String>)>);
 
 impl Serialize for ChoiceCriteria {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
