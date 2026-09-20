@@ -6,8 +6,9 @@ Jev evaluates several typed questions against the same JSON state in one request
 
 Declare criteria once, derive a [`QuestionSet`], and call [`Client::ask`].
 [`Answered<T>`](Answered) exposes the generated fields directly and retains
-the model version and [`Usage`]. [`Client::from_env`] reads
-`TYPESAFE_API_KEY` and optional `TYPESAFE_BASE_URL` or `TYPESAFE_API_BASE`.
+the model version and [`Usage`]. The example uses [`Client::from_env`]; see
+[Getting a client](#getting-a-client) for explicit configuration and custom
+transports.
 
 ```no_run
 use jevrs::{Choice, Client, Levels, Noul, Options, Questions, Score};
@@ -61,6 +62,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Run the complete native program in the
 [`native-derive` example](https://github.com/luizribeiro/jevrs/tree/main/examples/native-derive).
+
+# Getting a client
+
+[`Client::from_env`] reads `TYPESAFE_API_KEY` and, optionally,
+`TYPESAFE_BASE_URL` or `TYPESAFE_API_BASE`.
+
+[`Client::builder`] takes the key and settings explicitly through
+[`ClientBuilder::api_key`], [`ClientBuilder::base_url`],
+[`ClientBuilder::model`], [`ClientBuilder::retry`], and
+[`ClientBuilder::header`].
+
+```no_run
+use jevrs::{Client, Model};
+
+# fn main() -> Result<(), jevrs::Error> {
+let client = Client::from_env()?;
+
+let client = Client::builder()
+    .api_key("your-api-key")
+    .base_url("https://api.typesafe.ai")
+    .model(Model::LATEST)
+    .build()?;
+# let _ = client;
+# Ok(())
+# }
+```
+
+With your own HTTP stack, implement [`Transport`] and start from
+[`ClientBuilder::new`]. Retries stay off until you supply a [`Sleep`].
 
 # The typed path
 

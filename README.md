@@ -60,9 +60,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+`Client::from_env` reads `TYPESAFE_API_KEY`. To pass the key yourself or bring your own HTTP stack, see [Getting a client](https://docs.rs/jevrs/latest/jevrs/#getting-a-client).
+
 Install with `cargo add jevrs tokio --features tokio/macros,tokio/rt-multi-thread`.
 
-Read the [API documentation](https://docs.rs/jevrs), then choose the guide for the [typed path](https://docs.rs/jevrs/latest/jevrs/#the-typed-path), [dynamic path](https://docs.rs/jevrs/latest/jevrs/#the-dynamic-path), [transports](https://docs.rs/jevrs/latest/jevrs/#transports), or [retries and errors](https://docs.rs/jevrs/latest/jevrs/#retries-and-errors).
+Read the [API documentation](https://docs.rs/jevrs), then choose the guide for [getting a client](https://docs.rs/jevrs/latest/jevrs/#getting-a-client), the [typed path](https://docs.rs/jevrs/latest/jevrs/#the-typed-path), [dynamic path](https://docs.rs/jevrs/latest/jevrs/#the-dynamic-path), [transports](https://docs.rs/jevrs/latest/jevrs/#transports), or [retries and errors](https://docs.rs/jevrs/latest/jevrs/#retries-and-errors).
 
 Examples: [typed native](examples/native-derive), [dynamic native](examples/native-dynamic), [WASI HTTP 0.2](examples/wasip2), and [WASI HTTP 0.3](examples/wasip3).
 
