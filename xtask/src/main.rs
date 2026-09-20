@@ -1,6 +1,12 @@
 //! Repository automation and the fixture-backed test server.
 
-use std::{convert::Infallible, env, io::Write as _};
+use std::{
+    convert::Infallible,
+    env,
+    io::{BufRead as _, BufReader, Write as _},
+    path::Path,
+    process::{Child, Command, Stdio},
+};
 
 use bytes::Bytes;
 use http_body_util::{BodyExt as _, Full};
@@ -19,7 +25,8 @@ async fn main() -> Result<(), BoxError> {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
         Some("mock") => serve(parse_port(&mut args)?).await,
-        _ => Err("usage: cargo xtask mock [--port N]".into()),
+        Some("wasip2-smoke") if args.next().is_none() => wasip2_smoke(),
+        _ => Err("usage: cargo xtask <mock [--port N] | wasip2-smoke>".into()),
     }
 }
 
@@ -52,6 +59,98 @@ async fn serve_connection(stream: TcpStream) {
         .await;
     if let Err(error) = result {
         eprintln!("mock connection failed: {error}");
+    }
+}
+
+fn wasip2_smoke() -> Result<(), BoxError> {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("xtask must be inside the workspace")?;
+    require_success(
+        Command::new("cargo")
+            .args([
+                "build",
+                "-p",
+                "wasip2-example",
+                "--target",
+                "wasm32-wasip2",
+                "--locked",
+            ])
+            .current_dir(workspace)
+            .status()?,
+        "building the wasip2 example",
+    )?;
+
+    let mut mock = MockChild(
+        Command::new(env::current_exe()?)
+            .args(["mock", "--port", "0"])
+            .stdout(Stdio::piped())
+            .spawn()?,
+    );
+    let stdout = mock.0.stdout.take().ok_or("mock stdout was not piped")?;
+    let mut line = String::new();
+    BufReader::new(stdout).read_line(&mut line)?;
+    let base_url = line
+        .trim()
+        .strip_prefix("listening on ")
+        .ok_or("mock did not print its listening address")?;
+
+    let output = Command::new("wasmtime")
+        .args([
+            "run",
+            "-S",
+            "http",
+            "--env",
+            "TYPESAFE_API_KEY=test-key",
+            "--env",
+            &format!("TYPESAFE_BASE_URL={base_url}"),
+            "target/wasm32-wasip2/debug/wasip2_example.wasm",
+        ])
+        .current_dir(workspace)
+        .output()?;
+    require_success(output.status, &String::from_utf8_lossy(&output.stderr))?;
+    let output = String::from_utf8(output.stdout)?;
+    let (department, frustration) = recorded_picks()?;
+    if !output.contains(&format!("department: {department}"))
+        || !output.contains(&format!("({frustration})"))
+    {
+        return Err(format!("wasip2 output did not contain the recorded picks:\n{output}").into());
+    }
+    print!("{output}");
+    std::io::stdout().flush()?;
+    Ok(())
+}
+
+fn recorded_picks() -> Result<(String, String), BoxError> {
+    let fixture = fixtures::load("triage", "response");
+    let body = &fixture["body"]["answers"];
+    let department = body["department"]["choice"]
+        .as_str()
+        .ok_or("recorded department choice is missing")?;
+    let score = body["frustration"]["score"]
+        .as_f64()
+        .ok_or("recorded frustration score is missing")?;
+    let nearest = format!("{:.0}", score.round());
+    let frustration = body["frustration"]["legend"][nearest]
+        .as_str()
+        .ok_or("recorded frustration legend is missing")?;
+    Ok((department.into(), frustration.into()))
+}
+
+fn require_success(status: std::process::ExitStatus, action: &str) -> Result<(), BoxError> {
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{action} failed with {status}").into())
+    }
+}
+
+struct MockChild(Child);
+
+impl Drop for MockChild {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
     }
 }
 

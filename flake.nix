@@ -97,6 +97,11 @@
               cargo clippy -p jevrs --no-default-features --features wasip2 --target wasm32-wasip2 --all-targets --locked -- -D warnings
             '';
           };
+          wasip2-smoke = cargoHook {
+            name = "wasip2-smoke-hook";
+            runtimeInputs = [ pkgs.wasmtime ];
+            text = "cargo xtask wasip2-smoke";
+          };
           docs = cargoHook {
             name = "docs-hook";
             text = ''
