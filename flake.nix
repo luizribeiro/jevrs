@@ -117,6 +117,8 @@
         devShells.default = pkgs.mkShell {
           packages = [
             toolchain
+            pkgs.pkg-config
+            pkgs.openssl
             pkgs.wasmtime
             pkgs.wasm-tools
             pkgs.cargo-nextest
