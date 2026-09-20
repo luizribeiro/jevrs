@@ -13,6 +13,8 @@ use serde_json::{Map, Value};
 use crate::{NoSleep, RetryPolicy, Sleep, Transport};
 #[cfg(any(feature = "reqwest", feature = "native-tls"))]
 use crate::{ReqwestTransport, TokioSleep};
+#[cfg(all(feature = "wasip2", target_arch = "wasm32"))]
+use crate::{Wasip2Sleep, Wasip2Transport};
 
 const DEFAULT_BASE_URL: &str = "https://api.typesafe.ai";
 const EVALUATE_PATH: &str = "/v1/systemone";
@@ -70,6 +72,29 @@ impl Client<ReqwestTransport, TokioSleep> {
     #[must_use]
     pub fn reqwest() -> ClientBuilder<ReqwestTransport, TokioSleep> {
         Client::<ReqwestTransport>::builder(ReqwestTransport::default()).sleep(TokioSleep)
+    }
+}
+
+#[cfg(all(feature = "wasip2", target_arch = "wasm32"))]
+impl Client<Wasip2Transport, Wasip2Sleep> {
+    /// Starts configuring a WASI HTTP 0.2 client with monotonic-clock retries.
+    ///
+    /// Use this in a `wasm32-wasip2` component whose host provides `wasi:http`
+    /// and `wasi:clocks` 0.2.
+    ///
+    /// ```no_run
+    /// use jevrs::{Client, Error};
+    ///
+    /// # fn configured() -> Result<(), Error> {
+    /// let client = Client::wasip2().from_env()?.build()?;
+    /// # let _ = client;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg_attr(docsrs, doc(cfg(feature = "wasip2")))]
+    #[must_use]
+    pub fn wasip2() -> ClientBuilder<Wasip2Transport, Wasip2Sleep> {
+        Client::<Wasip2Transport>::builder(Wasip2Transport).sleep(Wasip2Sleep)
     }
 }
 

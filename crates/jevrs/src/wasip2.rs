@@ -11,6 +11,7 @@ use core::{fmt, future, future::Future};
 
 use http::{HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode};
 use wasi::{
+    clocks::monotonic_clock::subscribe_duration,
     http::{
         outgoing_handler,
         types::{
@@ -24,7 +25,7 @@ use wasi::{
     },
 };
 
-use crate::{Transport, wasip2_conversion};
+use crate::{Sleep, Transport, wasip2_conversion};
 
 const READ_CHUNK_SIZE: u64 = 64 * 1024;
 
@@ -115,6 +116,29 @@ impl Transport for Wasip2Transport {
                     | ErrorCode::HttpResponseTimeout
             )
         )
+    }
+}
+
+/// Waits between retry attempts using a host's WASI monotonic clock.
+///
+/// Pair this sleeper with [`Wasip2Transport`] when a `wasi:clocks` 0.2 host
+/// should provide retry delays.
+///
+/// ```no_run
+/// use jevrs::{Client, Wasip2Sleep, Wasip2Transport};
+///
+/// let builder = Client::builder(Wasip2Transport).sleep(Wasip2Sleep);
+/// # let _ = builder;
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Wasip2Sleep;
+
+impl Sleep for Wasip2Sleep {
+    fn sleep(&self, duration: core::time::Duration) -> impl Future<Output = ()> + crate::MaybeSend {
+        let nanoseconds = u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX);
+        let pollable = subscribe_duration(nanoseconds);
+        wait(pollable);
+        future::ready(())
     }
 }
 

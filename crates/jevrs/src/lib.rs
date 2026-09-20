@@ -85,4 +85,4 @@ pub use retry::RetryPolicy;
 pub use transport::{MaybeSend, NoSleep, Sleep, Transport};
 #[cfg(all(feature = "wasip2", target_arch = "wasm32"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "wasip2")))]
-pub use wasip2::{Wasip2Error, Wasip2Transport};
+pub use wasip2::{Wasip2Error, Wasip2Sleep, Wasip2Transport};
