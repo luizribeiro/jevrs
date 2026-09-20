@@ -1,0 +1,32 @@
+{
+  "model": "jev-0.0.1",
+  "questions": {
+    "department": {
+      "criteria": {
+        "billing": "Payments, invoicing, refunds",
+        "sales": null,
+        "technical": "Bugs, outages, integrations"
+      },
+      "instructions": "Which team should handle this?",
+      "type": "choice"
+    },
+    "frustration": {
+      "criteria": [
+        "Calm",
+        "Frustrated",
+        "Very angry"
+      ],
+      "instructions": "How frustrated is the customer?",
+      "type": "score"
+    },
+    "is_urgent": {
+      "criteria": {
+        "false": "No urgency expressed",
+        "true": "Explicitly time-sensitive"
+      },
+      "instructions": "Does this convey urgency?",
+      "type": "noul"
+    }
+  },
+  "state": "Help! My payouts have been failing for 3 days."
+}

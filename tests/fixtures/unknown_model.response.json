@@ -1,0 +1,9 @@
+{
+  "body": {
+    "detail": {
+      "error_type": "api_usage_error",
+      "message": "Unknown model: jev-0.0.1"
+    }
+  },
+  "status": 400
+}

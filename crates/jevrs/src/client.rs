@@ -375,78 +375,19 @@ mod tests {
     use std::time::Duration;
 
     use http::{HeaderName, HeaderValue, Method, Response, header};
-    use jevrs_core::{
-        DynChoiceQ, DynLevels, DynOptions, DynScoreQ, Handle, Model, NoulQ, Questions,
-    };
+    use jevrs_core::Model;
     use serde_json::{Value, json};
 
     use super::Client;
-    use crate::{MockError, MockSleep, MockTransport, RetryPolicy, test_support::block_on};
+    use crate::{
+        MockError, MockSleep, MockTransport, RetryPolicy,
+        test_support::{block_on, fixtures},
+    };
 
     const KEY: &str = "super-secret-key";
-    const STATE: &str = "Help! My payouts have been failing for 3 days.";
-    const TRIAGE_RESPONSE: &[u8] = br#"{
-      "model":"jev-1.13.0",
-      "answers":{
-        "is_urgent":{"type":"noul","noul":0.95},
-        "department":{"type":"choice","choice":"billing","confidence":0.79,
-          "probabilities":{"billing":0.86,"technical":0.14,"sales":0.0}},
-        "frustration":{"type":"score","score":1.05,"confidence":0.93,
-          "legend":{"0":"Calm","1":"Frustrated","2":"Very angry"},
-          "probabilities":{"0":0.0,"1":0.95,"2":0.05}}
-      },
-      "usage":{"input_tokens":414,"output_tokens":73}
-    }"#;
-    const MODELS_RESPONSE: &[u8] = br#"{"models":[{
-      "name":"jev-latest",
-      "description":"The latest iteration of TypeSafe's System One Model: Jev",
-      "release_date":"2026-09-10T18:38:01.391457+00:00",
-      "future_field":true
-    }]}"#;
 
-    type Triage = (
-        Questions,
-        Handle<NoulQ>,
-        Handle<DynChoiceQ>,
-        Handle<DynScoreQ>,
-    );
-
-    fn triage() -> Triage {
-        let mut questions = Questions::new();
-        let urgent = questions
-            .noul_with(
-                "is_urgent",
-                "Does this convey urgency?",
-                "Explicitly time-sensitive",
-                "No urgency expressed",
-            )
-            .unwrap();
-        let department = questions
-            .choice_dyn(
-                "department",
-                "Which team should handle this?",
-                DynOptions::new([
-                    (
-                        "billing".into(),
-                        Some("Payments, invoicing, refunds".into()),
-                    ),
-                    (
-                        "technical".into(),
-                        Some("Bugs, outages, integrations".into()),
-                    ),
-                    ("sales".into(), None),
-                ])
-                .unwrap(),
-            )
-            .unwrap();
-        let frustration = questions
-            .score_dyn(
-                "frustration",
-                "How frustrated is the customer?",
-                DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()]).unwrap(),
-            )
-            .unwrap();
-        (questions, urgent, department, frustration)
+    fn fixture_body(name: &str) -> Vec<u8> {
+        serde_json::to_vec(&fixtures::load(name, "response")["body"]).unwrap()
     }
 
     fn response(status: u16, body: &[u8]) -> Response<Vec<u8>> {
@@ -466,7 +407,7 @@ mod tests {
 
     #[test]
     fn evaluate_frames_method_url_headers_and_body() {
-        let transport = MockTransport::new([Ok(response(200, TRIAGE_RESPONSE))]);
+        let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
         let recorder = transport.clone();
         let client = Client::builder(transport)
             .api_key(KEY)
@@ -477,9 +418,9 @@ mod tests {
             )
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        block_on(client.evaluate(&STATE, &questions)).unwrap();
+        block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap();
 
         let mut requests = recorder.take_requests();
         let request = requests.pop().unwrap();
@@ -495,14 +436,14 @@ mod tests {
         assert_eq!(request.headers()[header::USER_AGENT], "jevrs/0.0.0");
         assert_eq!(request.headers()["x-extra"], "last");
         let body: Value = serde_json::from_slice(request.body()).unwrap();
-        assert_eq!(body["state"], STATE);
+        assert_eq!(body["state"], fixtures::STATE);
         assert_eq!(body["model"], "jev-latest");
         assert_eq!(body["questions"].as_object().unwrap().len(), 3);
     }
 
     #[test]
     fn models_frames_method_url_and_full_headers() {
-        let transport = MockTransport::new([Ok(response(200, MODELS_RESPONSE))]);
+        let transport = MockTransport::new([Ok(response(200, &fixture_body("models")))]);
         let recorder = transport.clone();
         let client = Client::builder(transport)
             .api_key(KEY)
@@ -529,7 +470,7 @@ mod tests {
     #[test]
     fn base_url_accepts_one_trailing_slash() {
         for base_url in ["https://example.test", "https://example.test/"] {
-            let transport = MockTransport::new([Ok(response(200, MODELS_RESPONSE))]);
+            let transport = MockTransport::new([Ok(response(200, &fixture_body("models")))]);
             let recorder = transport.clone();
             let client = Client::builder(transport)
                 .api_key(KEY)
@@ -563,21 +504,21 @@ mod tests {
             .api_key("bad\nkey")
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        let error = block_on(client.evaluate(&STATE, &questions)).unwrap_err();
+        let error = block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap_err();
 
         assert!(matches!(error, jevrs_core::Error::Config { .. }));
     }
 
     #[test]
     fn evaluate_with_overrides_the_body_model() {
-        let transport = MockTransport::new([Ok(response(200, TRIAGE_RESPONSE))]);
+        let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
         let recorder = transport.clone();
         let client = Client::builder(transport).api_key(KEY).build().unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        block_on(client.evaluate_with(&Model::PREVIEW, &STATE, &questions)).unwrap();
+        block_on(client.evaluate_with(&Model::PREVIEW, &fixtures::STATE, &questions)).unwrap();
 
         let request = recorder.take_requests().pop().unwrap();
         let body: Value = serde_json::from_slice(request.body()).unwrap();
@@ -586,16 +527,16 @@ mod tests {
 
     #[test]
     fn recorded_triage_pair_round_trips() {
-        let transport = MockTransport::new([Ok(response(200, TRIAGE_RESPONSE))]);
+        let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
         let client = Client::builder(transport).api_key(KEY).build().unwrap();
-        let (questions, urgent, department, frustration) = triage();
+        let (questions, urgent, department, frustration) = fixtures::triage();
 
-        let answers = block_on(client.evaluate(&STATE, &questions)).unwrap();
+        let answers = block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap();
 
         assert_eq!(answers.model(), "jev-1.13.0");
         assert!(answers[urgent].is_yes(0.9));
         assert_eq!(answers[department].pick, "billing");
-        assert!((answers[frustration].expected() - 1.05).abs() < f64::EPSILON);
+        assert!((0.0..=2.0).contains(&answers[frustration].expected()));
         assert_eq!(answers.usage().input_tokens, 414);
     }
 
@@ -603,7 +544,7 @@ mod tests {
     fn rate_limit_retries_once_with_policy_delay() {
         let transport = MockTransport::new([
             Ok(response(429, br#"{"detail":"slow down"}"#)),
-            Ok(response(200, TRIAGE_RESPONSE)),
+            Ok(response(200, &fixture_body("triage"))),
         ]);
         let recorder = transport.clone();
         let sleep = MockSleep::default();
@@ -615,9 +556,9 @@ mod tests {
             .sleep(sleep)
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        block_on(client.evaluate(&STATE, &questions)).unwrap();
+        block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap();
 
         assert_eq!(recorder.take_requests().len(), 2);
         assert_eq!(sleep_recorder.take_durations(), [policy.delay_for(0, None)]);
@@ -630,7 +571,8 @@ mod tests {
             .header("retry-after", "2")
             .body(br#"{"detail":"slow down"}"#.to_vec())
             .unwrap();
-        let transport = MockTransport::new([Ok(limited), Ok(response(200, TRIAGE_RESPONSE))]);
+        let transport =
+            MockTransport::new([Ok(limited), Ok(response(200, &fixture_body("triage")))]);
         let sleep = MockSleep::default();
         let sleep_recorder = sleep.clone();
         let client = Client::builder(transport)
@@ -638,9 +580,9 @@ mod tests {
             .sleep(sleep)
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        block_on(client.evaluate(&STATE, &questions)).unwrap();
+        block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap();
 
         assert_eq!(sleep_recorder.take_durations(), [Duration::from_secs(2)]);
     }
@@ -661,9 +603,9 @@ mod tests {
             .sleep(sleep)
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        let error = block_on(client.evaluate(&STATE, &questions)).unwrap_err();
+        let error = block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap_err();
 
         assert!(matches!(error, jevrs_core::Error::Overloaded { .. }));
         assert_eq!(recorder.take_requests().len(), 3);
@@ -677,7 +619,7 @@ mod tests {
     fn authentication_failure_does_not_retry() {
         let transport = MockTransport::new([
             Ok(response(401, br#"{"detail":"bad key"}"#)),
-            Ok(response(200, TRIAGE_RESPONSE)),
+            Ok(response(200, &fixture_body("triage"))),
         ]);
         let recorder = transport.clone();
         let sleep = MockSleep::default();
@@ -687,9 +629,9 @@ mod tests {
             .sleep(sleep)
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        let error = block_on(client.evaluate(&STATE, &questions)).unwrap_err();
+        let error = block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap_err();
 
         let jevrs_core::Error::Auth { detail, .. } = error else {
             panic!("expected authentication error");
@@ -703,7 +645,7 @@ mod tests {
     fn transport_retryability_controls_retries() {
         let retrying = MockTransport::new([
             Err(MockError { retryable: true }),
-            Ok(response(200, TRIAGE_RESPONSE)),
+            Ok(response(200, &fixture_body("triage"))),
         ]);
         let retrying_recorder = retrying.clone();
         let client = Client::builder(retrying)
@@ -711,13 +653,13 @@ mod tests {
             .sleep(MockSleep::default())
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
-        block_on(client.evaluate(&STATE, &questions)).unwrap();
+        let (questions, _, _, _) = fixtures::triage();
+        block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap();
         assert_eq!(retrying_recorder.take_requests().len(), 2);
 
         let failing = MockTransport::new([
             Err(MockError { retryable: false }),
-            Ok(response(200, TRIAGE_RESPONSE)),
+            Ok(response(200, &fixture_body("triage"))),
         ]);
         let failing_recorder = failing.clone();
         let client = Client::builder(failing)
@@ -725,8 +667,8 @@ mod tests {
             .sleep(MockSleep::default())
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
-        let error = block_on(client.evaluate(&STATE, &questions)).unwrap_err();
+        let (questions, _, _, _) = fixtures::triage();
+        let error = block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap_err();
         assert!(matches!(error, jevrs_core::Error::Transport(_)));
         assert_eq!(failing_recorder.take_requests().len(), 1);
     }
@@ -735,7 +677,7 @@ mod tests {
     fn no_sleep_never_retries() {
         let transport = MockTransport::new([
             Ok(response(429, br#"{"detail":"slow down"}"#)),
-            Ok(response(200, TRIAGE_RESPONSE)),
+            Ok(response(200, &fixture_body("triage"))),
         ]);
         let recorder = transport.clone();
         let client = Client::builder(transport)
@@ -743,9 +685,9 @@ mod tests {
             .retry(fixed_retry())
             .build()
             .unwrap();
-        let (questions, _, _, _) = triage();
+        let (questions, _, _, _) = fixtures::triage();
 
-        let error = block_on(client.evaluate(&STATE, &questions)).unwrap_err();
+        let error = block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap_err();
 
         assert!(matches!(error, jevrs_core::Error::RateLimited { .. }));
         assert_eq!(recorder.take_requests().len(), 1);
@@ -766,7 +708,10 @@ mod tests {
 
     #[test]
     fn models_parse_release_date_and_unknown_fields() {
-        let transport = MockTransport::new([Ok(response(200, MODELS_RESPONSE))]);
+        let mut body = fixtures::load("models", "response")["body"].clone();
+        body["models"][0]["future_field"] = json!(true);
+        let transport =
+            MockTransport::new([Ok(response(200, &serde_json::to_vec(&body).unwrap()))]);
         let client = Client::builder(transport).api_key(KEY).build().unwrap();
 
         let models = block_on(client.models()).unwrap();

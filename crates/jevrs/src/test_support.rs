@@ -4,6 +4,9 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+#[path = "../../../tests/fixtures/mod.rs"]
+pub(crate) mod fixtures;
+
 pub(crate) fn block_on<F: Future>(future: F) -> F::Output {
     let waker = Waker::noop();
     let mut context = Context::from_waker(waker);
