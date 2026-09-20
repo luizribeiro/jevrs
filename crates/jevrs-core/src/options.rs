@@ -1,8 +1,18 @@
+use alloc::{string::String, vec::Vec};
 use core::{
     fmt,
     marker::PhantomData,
     ops::{Index, IndexMut},
 };
+
+use crate::Error;
+
+const OPTIONS_TOO_FEW: &str = "options must contain at least one entry";
+const OPTIONS_TOO_MANY: &str = "options must contain at most 255 entries";
+const OPTION_KEY_EMPTY: &str = "option keys must not be empty";
+const OPTION_KEY_DUPLICATE: &str = "option keys must be unique";
+const LEVELS_TOO_FEW: &str = "levels must contain at least two entries";
+const LEVELS_TOO_MANY: &str = "levels must contain at most 10 entries";
 
 /// A finite set whose values have a dense canonical order.
 ///
@@ -99,6 +109,135 @@ pub trait Levels: Indexed + Ord {
     fn map_from_fn<T: 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T>;
 }
 
+/// A runtime-defined set of named choices.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DynOptions {
+    keys: Vec<String>,
+    descriptions: Vec<Option<String>>,
+}
+
+impl DynOptions {
+    /// Creates a validated option set while preserving input order.
+    ///
+    /// ```
+    /// use jevrs_core::DynOptions;
+    ///
+    /// let options = DynOptions::new([
+    ///     ("billing".into(), Some("Payments and refunds".into())),
+    ///     ("sales".into(), None),
+    /// ])?;
+    /// assert_eq!(options.index_of("sales"), Some(1));
+    /// # Ok::<(), jevrs_core::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidCriteria`] when there are no options, there are
+    /// more than 255, or a key is empty or duplicated.
+    pub fn new(options: impl IntoIterator<Item = (String, Option<String>)>) -> Result<Self, Error> {
+        let mut keys = Vec::new();
+        let mut descriptions = Vec::new();
+        for (key, description) in options {
+            if key.is_empty() {
+                return Err(invalid_criteria(OPTION_KEY_EMPTY));
+            }
+            if keys.iter().any(|existing| existing == &key) {
+                return Err(invalid_criteria(OPTION_KEY_DUPLICATE));
+            }
+            if keys.len() == 255 {
+                return Err(invalid_criteria(OPTIONS_TOO_MANY));
+            }
+            keys.push(key);
+            descriptions.push(description);
+        }
+        if keys.is_empty() {
+            return Err(invalid_criteria(OPTIONS_TOO_FEW));
+        }
+        Ok(Self { keys, descriptions })
+    }
+
+    /// Returns option keys in wire order.
+    #[must_use]
+    pub fn keys(&self) -> &[String] {
+        &self.keys
+    }
+
+    /// Returns the description for `key`, if the key has one.
+    #[must_use]
+    pub fn description(&self, key: &str) -> Option<&str> {
+        self.index_of(key)
+            .and_then(|index| self.descriptions[index].as_deref())
+    }
+
+    /// Returns the position of `key` in wire order.
+    #[must_use]
+    pub fn index_of(&self, key: &str) -> Option<usize> {
+        self.keys.iter().position(|candidate| candidate == key)
+    }
+
+    /// Returns the number of options.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    /// Reports whether the set has no options.
+    ///
+    /// A successfully constructed set is never empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+}
+
+/// A runtime-defined ordered scoring scale.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DynLevels(Vec<String>);
+
+impl DynLevels {
+    /// Creates a validated scale while preserving input order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidCriteria`] unless the scale contains between
+    /// two and ten levels.
+    pub fn new(levels: impl IntoIterator<Item = String>) -> Result<Self, Error> {
+        let mut levels = levels.into_iter().take(11).collect::<Vec<_>>();
+        if levels.len() < 2 {
+            return Err(invalid_criteria(LEVELS_TOO_FEW));
+        }
+        if levels.len() > 10 {
+            return Err(invalid_criteria(LEVELS_TOO_MANY));
+        }
+        levels.shrink_to_fit();
+        Ok(Self(levels))
+    }
+
+    /// Returns level descriptions in ascending score order.
+    #[must_use]
+    pub fn levels(&self) -> &[String] {
+        &self.0
+    }
+
+    /// Returns the number of levels.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Reports whether the scale has no levels.
+    ///
+    /// A successfully constructed scale is never empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+fn invalid_criteria(reason: &'static str) -> Error {
+    Error::InvalidCriteria { id: None, reason }
+}
+
 /// Dense per-key storage for a static [`Options`] or [`Levels`] implementation.
 #[derive(Clone, PartialEq)]
 pub struct ArrayMap<K: Indexed, T, const N: usize>([T; N], PhantomData<K>);
@@ -155,8 +294,18 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
+
+    use super::{
+        DynLevels, DynOptions, LEVELS_TOO_FEW, LEVELS_TOO_MANY, OPTION_KEY_DUPLICATE,
+        OPTION_KEY_EMPTY, OPTIONS_TOO_FEW, OPTIONS_TOO_MANY,
+    };
     use crate::{
-        Indexed, Levels, Options,
+        Error, Indexed, Levels, Options,
         test_support::{Dept, Frustration},
     };
 
@@ -197,5 +346,75 @@ mod tests {
                 (Frustration::VeryAngry, &"Very angry"),
             ]
         );
+    }
+
+    fn invalid_reason(error: Error) -> &'static str {
+        match error {
+            Error::InvalidCriteria { id: None, reason } => reason,
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    fn dynamic_options_reject_every_invalid_shape() {
+        assert_eq!(
+            invalid_reason(DynOptions::new(Vec::new()).unwrap_err()),
+            OPTIONS_TOO_FEW
+        );
+        let too_many = (0..256)
+            .map(|index| (index.to_string(), None))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            invalid_reason(DynOptions::new(too_many).unwrap_err()),
+            OPTIONS_TOO_MANY
+        );
+        assert_eq!(
+            invalid_reason(
+                DynOptions::new([("billing".into(), None), ("billing".into(), None)]).unwrap_err()
+            ),
+            OPTION_KEY_DUPLICATE
+        );
+        assert_eq!(
+            invalid_reason(DynOptions::new([(String::new(), None)]).unwrap_err()),
+            OPTION_KEY_EMPTY
+        );
+    }
+
+    #[test]
+    fn dynamic_options_accept_255_entries_and_expose_accessors() {
+        let entries = (0..255)
+            .map(|index| {
+                let key = index.to_string();
+                let description = (index == 1).then(|| "Technical support".to_string());
+                (key, description)
+            })
+            .collect::<Vec<_>>();
+        let options = DynOptions::new(entries).unwrap();
+
+        assert_eq!(options.len(), 255);
+        assert_eq!(options.keys().first().map(String::as_str), Some("0"));
+        assert_eq!(options.keys().last().map(String::as_str), Some("254"));
+        assert_eq!(options.description("1"), Some("Technical support"));
+        assert_eq!(options.description("2"), None);
+        assert_eq!(options.description("missing"), None);
+        assert_eq!(options.index_of("254"), Some(254));
+        assert_eq!(options.index_of("missing"), None);
+    }
+
+    #[test]
+    fn dynamic_levels_validate_bounds_and_expose_accessors() {
+        assert_eq!(
+            invalid_reason(DynLevels::new(vec!["Calm".into()]).unwrap_err()),
+            LEVELS_TOO_FEW
+        );
+        assert_eq!(
+            invalid_reason(DynLevels::new((0..11).map(|index| index.to_string())).unwrap_err()),
+            LEVELS_TOO_MANY
+        );
+
+        let levels = DynLevels::new((0..10).map(|index| index.to_string())).unwrap();
+        assert_eq!(levels.len(), 10);
+        assert_eq!(levels.levels().first().map(String::as_str), Some("0"));
+        assert_eq!(levels.levels().last().map(String::as_str), Some("9"));
     }
 }

@@ -11,6 +11,6 @@ pub(crate) mod test_support;
 mod types;
 
 pub use error::{Error, ErrorDetail, classify};
-pub use options::{ArrayMap, Indexed, Levels, Options};
+pub use options::{ArrayMap, DynLevels, DynOptions, Indexed, Levels, Options};
 pub use probability::{Confidence, Probability};
 pub use types::{Instructions, Model, Usage};
