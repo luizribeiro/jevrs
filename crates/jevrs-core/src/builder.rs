@@ -21,12 +21,12 @@ use crate::{
 
 static NEXT_BATCH_ID: AtomicU64 = AtomicU64::new(1);
 
-/// Identifies the [`Questions`] batch that created a typed [`Handle`].
+/// Identifies the question batch that created a typed handle.
 ///
-/// You normally see this only in [`Handle`]'s debug output or a mismatched
-/// handle panic; [`Answers`](crate::Answers) checks it automatically.
+/// It appears only in debug output or a mismatched handle panic; answer lookup
+/// checks it automatically.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct BatchId(u64);
+pub(crate) struct BatchId(u64);
 
 /// A typed reference to one question in a [`Questions`] batch.
 ///

@@ -70,6 +70,7 @@ pub trait Options: Indexed {
     const N: usize;
 
     /// Forces a compile-time check of the API's 1-to-255 choice limit.
+    #[doc(hidden)]
     const COUNT_OK: () = assert!(Self::N >= 1 && Self::N <= 255);
 
     /// Selects dense storage for one value per choice.
@@ -101,6 +102,7 @@ pub trait Levels: Indexed + Ord {
     const N: usize;
 
     /// Forces a compile-time check of the API's 2-to-10 level limit.
+    #[doc(hidden)]
     const COUNT_OK: () = assert!(Self::N >= 2 && Self::N <= 10);
 
     /// Selects dense storage for one value per level.
