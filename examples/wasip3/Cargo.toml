@@ -14,5 +14,5 @@ path = "src/main.rs"
 workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", target_env = "p3"))'.dependencies]
-jevrs = { path = "../../crates/jevrs", version = "0.1.0" }
+jevrs = { path = "../../crates/jevrs", version = "0.1.1" }
 wasip3 = "0.9"

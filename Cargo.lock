@@ -649,7 +649,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jevrs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "http",
@@ -666,7 +666,7 @@ dependencies = [
 
 [[package]]
 name = "jevrs-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -675,7 +675,7 @@ dependencies = [
 
 [[package]]
 name = "jevrs-derive"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "jevrs",
  "jevrs-core",
@@ -838,7 +838,7 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
 name = "native-derive"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "jevrs",
  "tokio",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "native-dynamic"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "jevrs",
  "tokio",
@@ -1782,7 +1782,7 @@ dependencies = [
 
 [[package]]
 name = "wasip2-example"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "futures",
  "jevrs",
@@ -1803,7 +1803,7 @@ dependencies = [
 
 [[package]]
 name = "wasip3-example"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "jevrs",
  "wasip3",
@@ -2052,7 +2052,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "http-body-util",
