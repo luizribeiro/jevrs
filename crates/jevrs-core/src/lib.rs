@@ -8,6 +8,7 @@ mod error;
 mod options;
 mod probability;
 mod question;
+mod response;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod types;
