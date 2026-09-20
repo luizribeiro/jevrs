@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use jevrs::{Indexed, Options};
+use jevrs::{Indexed, Options as OptionsTrait};
 use jevrs_derive::Options;
 
 #[derive(Clone, Copy, Debug, Eq, Options, PartialEq)]

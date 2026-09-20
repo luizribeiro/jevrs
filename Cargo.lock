@@ -597,6 +597,7 @@ version = "0.0.0"
 dependencies = [
  "http",
  "jevrs-core",
+ "jevrs-derive",
  "reqwest",
  "serde",
  "serde_json",

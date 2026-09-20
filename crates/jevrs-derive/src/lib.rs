@@ -23,7 +23,7 @@ mod options;
 /// absent. A variant without either has no description.
 ///
 /// ```
-/// use jevrs::{Indexed, Options};
+/// use jevrs::{Indexed, Options as OptionsTrait};
 /// use jevrs_derive::Options;
 ///
 /// #[derive(Clone, Copy, Debug, Eq, Options, PartialEq)]
@@ -63,7 +63,7 @@ pub fn derive_options(input: TokenStream) -> TokenStream {
 /// doc lines are joined with one space.
 ///
 /// ```
-/// use jevrs::{Indexed, Levels};
+/// use jevrs::{Indexed, Levels as LevelsTrait};
 /// use jevrs_derive::Levels;
 ///
 /// #[derive(Clone, Copy, Debug, Eq, Levels, Ord, PartialEq, PartialOrd)]

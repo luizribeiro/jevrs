@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use jevrs::{Indexed, Levels};
+use jevrs::{Indexed, Levels as LevelsTrait};
 use jevrs_derive::Levels;
 
 #[derive(Clone, Copy, Debug, Eq, Levels, Ord, PartialEq, PartialOrd)]
