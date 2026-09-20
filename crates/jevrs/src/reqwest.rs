@@ -12,11 +12,11 @@ use crate::{Sleep, Transport};
 /// is enabled and rustls otherwise. Native TLS wins when both features are on.
 ///
 /// ```no_run
-/// use jevrs::{Client, Error, ReqwestTransport, TokioSleep};
+/// use jevrs::{ClientBuilder, Error, ReqwestTransport, TokioSleep};
 ///
 /// # fn configured() -> Result<(), Error> {
 /// let transport = ReqwestTransport::from(reqwest::Client::new());
-/// let client = Client::builder(transport)
+/// let client = ClientBuilder::new(transport)
 ///     .sleep(TokioSleep)
 ///     .from_env()?
 ///     .build()?;
@@ -91,9 +91,9 @@ impl Transport for ReqwestTransport {
 /// Tokio runtime.
 ///
 /// ```no_run
-/// use jevrs::{Client, ReqwestTransport, TokioSleep};
+/// use jevrs::{ClientBuilder, ReqwestTransport, TokioSleep};
 ///
-/// let builder = Client::builder(ReqwestTransport::default())
+/// let builder = ClientBuilder::new(ReqwestTransport::default())
 ///     .sleep(TokioSleep);
 /// # let _ = builder;
 /// ```

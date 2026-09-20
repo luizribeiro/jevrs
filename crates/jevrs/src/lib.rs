@@ -25,6 +25,15 @@ mod wasip2;
 mod wasip3;
 
 pub use client::{Client, ClientBuilder, ModelInfo};
+#[cfg(any(
+    all(
+        any(feature = "reqwest", feature = "native-tls"),
+        not(target_arch = "wasm32")
+    ),
+    all(target_arch = "wasm32", target_env = "p2"),
+    all(target_arch = "wasm32", target_env = "p3")
+))]
+pub use client::{DefaultSleep, DefaultTransport};
 pub use jevrs_core::*;
 #[cfg(feature = "derive")]
 #[cfg_attr(docsrs, doc(cfg(feature = "derive")))]

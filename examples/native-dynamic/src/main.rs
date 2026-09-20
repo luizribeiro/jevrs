@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ["Calm", "Frustrated", "Very angry"],
     )?;
 
-    let client = Client::reqwest().from_env()?.build()?;
+    let client = Client::from_env()?;
     let answers = client.evaluate(&STATE, &questions).await?;
 
     println!("model: {}", answers.model());

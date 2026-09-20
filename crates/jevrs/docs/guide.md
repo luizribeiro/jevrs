@@ -6,7 +6,7 @@ Jev evaluates several typed questions against the same JSON state in one request
 
 Declare criteria once, derive a [`QuestionSet`], and call [`Client::ask`].
 [`Answered<T>`](Answered) exposes the generated fields directly and retains
-the model version and [`Usage`]. [`ClientBuilder::from_env`] reads
+the model version and [`Usage`]. [`Client::from_env`] reads
 `TYPESAFE_API_KEY` and optional `TYPESAFE_BASE_URL` or `TYPESAFE_API_BASE`.
 
 ```no_run
@@ -47,7 +47,7 @@ struct Triage {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::reqwest().from_env()?.build()?;
+    let client = Client::from_env()?;
     let triage = client
         .ask::<Triage>(&"Help! My payouts have been failing for 3 days.")
         .await?;
@@ -130,7 +130,7 @@ let frustration = questions.score_dyn(
     ["Calm", "Frustrated", "Very angry"],
 )?;
 
-let client = Client::reqwest().from_env()?.build()?;
+let client = Client::from_env()?;
 let answers = client
     .evaluate(&"Help! My payouts have been failing for 3 days.", &questions)
     .await?;
@@ -178,20 +178,12 @@ assert_eq!(
 
 # Transports
 
-The default `reqwest` feature provides [`Client::reqwest`],
-[`ReqwestTransport`], and [`TokioSleep`] for native Tokio applications. A
-synchronous WASI HTTP 0.2 transport is selected automatically on
-`wasm32-wasip2`; see the
-[`wasip2` example](https://github.com/luizribeiro/jevrs/tree/main/examples/wasip2).
-An asynchronous WASI HTTP 0.3 transport is selected automatically on
-`wasm32-wasip3`; see the
-[`wasip3` example](https://github.com/luizribeiro/jevrs/tree/main/examples/wasip3).
-Neither WASI transport needs a feature flag.
-
-Implement [`Transport`] when you already have an HTTP stack. The client gives
-it a complete `http::Request<Vec<u8>>`, including authorization. Return the
-complete response and mark only safe transport failures as retryable: a
-failure before any bytes reached the server, never one after a partial send.
+The default transport follows the target: [`DefaultTransport`] resolves to
+`ReqwestTransport` on native targets, `Wasip2Transport` on `wasm32-wasip2`, and
+`Wasip3Transport` on `wasm32-wasip3`. Implement [`Transport`] and use
+[`ClientBuilder::new`] when you already have an HTTP stack. Mark only safe
+transport failures as retryable: a failure before any bytes reached the server,
+never one after a partial send.
 
 ```
 use std::{convert::Infallible, future::Future};
@@ -217,8 +209,8 @@ impl Transport for MyTransport {
 [`RetryPolicy`] retries HTTP 429 and 529 responses plus failures that
 [`Transport::is_retryable`] accepts. A server `Retry-After` value wins over
 exponential backoff. A custom transport needs a [`Sleep`] implementation to
-wait between attempts; [`NoSleep`] disables retries. Native and WASI client
-constructors install their matching sleeper.
+wait between attempts; [`NoSleep`] disables retries. [`Client::builder`]
+installs the target's matching sleeper.
 
 Match the non-exhaustive [`Error`] enum by category. API errors retain parsed
 details, the raw body, and [`ErrorDetail::request_id`] for support requests.
@@ -241,7 +233,7 @@ fn report(error: &Error) {
 }
 
 # fn configured() -> Result<(), Error> {
-let client = Client::reqwest()
+let client = Client::builder()
     .retry(RetryPolicy { max_retries: 4, ..RetryPolicy::default() })
     .from_env()?
     .build()?;

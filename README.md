@@ -44,7 +44,7 @@ struct Triage {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::reqwest().from_env()?.build()?;
+    let client = Client::from_env()?;
     let triage = client
         .ask::<Triage>(&"Help! My payouts have been failing for 3 days.")
         .await?;

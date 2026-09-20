@@ -8,7 +8,7 @@
 use std::sync::{Arc, Mutex};
 
 use http::{Request, Response, header::AUTHORIZATION};
-use jevrs::{Client, Error, Model, ReqwestTransport, RetryPolicy, TokioSleep, Transport};
+use jevrs::{ClientBuilder, Error, Model, ReqwestTransport, RetryPolicy, TokioSleep, Transport};
 
 #[path = "../../../tests/fixtures/mod.rs"]
 mod fixtures;
@@ -94,7 +94,7 @@ fn builder(
         ..RetryPolicy::default()
     };
     (
-        Client::builder(transport).sleep(TokioSleep).retry(retry),
+        ClientBuilder::new(transport).sleep(TokioSleep).retry(retry),
         capture,
     )
 }

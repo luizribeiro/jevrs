@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(all(target_arch = "wasm32", target_env = "p3"))]
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::wasip3().from_env()?.build()?;
+    let client = Client::from_env()?;
     let answers = client.ask::<Triage>(&STATE).await?;
 
     println!("model: {}", answers.model());

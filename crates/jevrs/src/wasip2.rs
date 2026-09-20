@@ -80,10 +80,10 @@ impl From<ErrorCode> for Wasip2Error {
 /// Spin, wasmCloud, or another `wasi:http` 0.2 runtime.
 ///
 /// ```no_run
-/// use jevrs::{Client, Error, Wasip2Transport};
+/// use jevrs::{ClientBuilder, Error, Wasip2Transport};
 ///
 /// # fn configured() -> Result<(), Error> {
-/// let client = Client::builder(Wasip2Transport)
+/// let client = ClientBuilder::new(Wasip2Transport)
 ///     .from_env()?
 ///     .build()?;
 /// # let _ = client;
@@ -127,9 +127,9 @@ impl Transport for Wasip2Transport {
 /// should provide retry delays.
 ///
 /// ```no_run
-/// use jevrs::{Client, Wasip2Sleep, Wasip2Transport};
+/// use jevrs::{ClientBuilder, Wasip2Sleep, Wasip2Transport};
 ///
-/// let builder = Client::builder(Wasip2Transport).sleep(Wasip2Sleep);
+/// let builder = ClientBuilder::new(Wasip2Transport).sleep(Wasip2Sleep);
 /// # let _ = builder;
 /// ```
 #[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p2"))))]

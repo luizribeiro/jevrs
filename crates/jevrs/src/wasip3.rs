@@ -54,10 +54,10 @@ impl From<ErrorCode> for Wasip3Error {
 /// another runtime implementing the WASI 0.3 draft.
 ///
 /// ```no_run
-/// use jevrs::{Client, Error, Wasip3Transport};
+/// use jevrs::{ClientBuilder, Error, Wasip3Transport};
 ///
 /// # fn configured() -> Result<(), Error> {
-/// let client = Client::builder(Wasip3Transport)
+/// let client = ClientBuilder::new(Wasip3Transport)
 ///     .from_env()?
 ///     .build()?;
 /// # let _ = client;
@@ -98,9 +98,9 @@ impl Transport for Wasip3Transport {
 /// should provide retry delays.
 ///
 /// ```no_run
-/// use jevrs::{Client, Wasip3Sleep, Wasip3Transport};
+/// use jevrs::{ClientBuilder, Wasip3Sleep, Wasip3Transport};
 ///
-/// let builder = Client::builder(Wasip3Transport).sleep(Wasip3Sleep);
+/// let builder = ClientBuilder::new(Wasip3Transport).sleep(Wasip3Sleep);
 /// # let _ = builder;
 /// ```
 #[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p3"))))]

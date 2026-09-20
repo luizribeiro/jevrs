@@ -42,12 +42,78 @@ pub struct ModelInfo {
     pub extra: Map<String, Value>,
 }
 
-/// An async Jev API client backed by caller-selected I/O implementations.
+/// The target-selected HTTP transport.
 ///
-/// Use [`Client::reqwest`] for a native Tokio application, target-specific WASI
-/// constructors for components, or [`Client::builder`] with a custom
-/// [`Transport`]. Use [`Self::ask`] for a [`QuestionSet`] and [`Self::evaluate`]
-/// for a runtime-built [`Questions`] batch.
+/// On native targets this resolves to [`ReqwestTransport`]. The other target
+/// selections are `Wasip2Transport` and `Wasip3Transport`.
+#[cfg(all(
+    any(feature = "reqwest", feature = "native-tls"),
+    not(target_arch = "wasm32")
+))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(
+        any(feature = "reqwest", feature = "native-tls"),
+        not(target_arch = "wasm32")
+    )))
+)]
+pub type DefaultTransport = ReqwestTransport;
+
+/// The target-selected retry sleeper.
+///
+/// On native targets this resolves to [`TokioSleep`]. The other target
+/// selections are `Wasip2Sleep` and `Wasip3Sleep`.
+#[cfg(all(
+    any(feature = "reqwest", feature = "native-tls"),
+    not(target_arch = "wasm32")
+))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(
+        any(feature = "reqwest", feature = "native-tls"),
+        not(target_arch = "wasm32")
+    )))
+)]
+pub type DefaultSleep = TokioSleep;
+
+/// The target-selected HTTP transport.
+///
+/// On `wasm32-wasip2` this resolves to [`Wasip2Transport`]. The other target
+/// selections are `ReqwestTransport` and `Wasip3Transport`.
+#[cfg(all(target_arch = "wasm32", target_env = "p2"))]
+#[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p2"))))]
+pub type DefaultTransport = Wasip2Transport;
+
+/// The target-selected retry sleeper.
+///
+/// On `wasm32-wasip2` this resolves to [`Wasip2Sleep`]. The other target
+/// selections are `TokioSleep` and `Wasip3Sleep`.
+#[cfg(all(target_arch = "wasm32", target_env = "p2"))]
+#[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p2"))))]
+pub type DefaultSleep = Wasip2Sleep;
+
+/// The target-selected HTTP transport.
+///
+/// On `wasm32-wasip3` this resolves to [`Wasip3Transport`]. The other target
+/// selections are `ReqwestTransport` and `Wasip2Transport`.
+#[cfg(all(target_arch = "wasm32", target_env = "p3"))]
+#[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p3"))))]
+pub type DefaultTransport = Wasip3Transport;
+
+/// The target-selected retry sleeper.
+///
+/// On `wasm32-wasip3` this resolves to [`Wasip3Sleep`]. The other target
+/// selections are `TokioSleep` and `Wasip2Sleep`.
+#[cfg(all(target_arch = "wasm32", target_env = "p3"))]
+#[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p3"))))]
+pub type DefaultSleep = Wasip3Sleep;
+
+/// An async Jev API client backed by target-selected or custom I/O.
+///
+/// Use [`Client::from_env`] for the target's default transport, or
+/// [`ClientBuilder::new`] with a custom [`Transport`]. Use [`Self::ask`] for a
+/// [`QuestionSet`] and [`Self::evaluate`] for a runtime-built [`Questions`]
+/// batch.
 pub struct Client<T: Transport, S: Sleep = NoSleep> {
     base_url: String,
     api_key: String,
@@ -58,84 +124,53 @@ pub struct Client<T: Transport, S: Sleep = NoSleep> {
     extra_headers: Vec<(HeaderName, HeaderValue)>,
 }
 
-impl<T: Transport> Client<T, NoSleep> {
-    /// Starts a client with a custom transport and retries disabled.
-    ///
-    /// Add a [`Sleep`] with [`ClientBuilder::sleep`] to enable retry delays.
-    pub fn builder(transport: T) -> ClientBuilder<T, NoSleep> {
-        ClientBuilder::new(transport)
-    }
-}
-
-#[cfg(all(
-    any(feature = "reqwest", feature = "native-tls"),
-    not(target_arch = "wasm32")
+#[cfg(any(
+    all(
+        any(feature = "reqwest", feature = "native-tls"),
+        not(target_arch = "wasm32")
+    ),
+    all(target_arch = "wasm32", target_env = "p2"),
+    all(target_arch = "wasm32", target_env = "p3")
 ))]
-impl Client<ReqwestTransport, TokioSleep> {
-    /// Starts configuring a native client using reqwest and Tokio.
+impl Client<DefaultTransport, DefaultSleep> {
+    /// Starts configuring a client with the target's default transport.
     ///
-    /// Use this when an application runs on Tokio and does not need to
-    /// customize reqwest's client configuration.
+    /// Use [`ClientBuilder::new`] when supplying a custom transport.
     ///
     /// ```no_run
     /// use jevrs::{Client, Error};
     ///
     /// # fn configured() -> Result<(), Error> {
-    /// let client = Client::reqwest().from_env()?.build()?;
+    /// let client = Client::builder()
+    ///     .from_env()?
+    ///     .build()?;
     /// # let _ = client;
     /// # Ok(())
     /// # }
     /// ```
-    #[cfg_attr(docsrs, doc(cfg(any(feature = "reqwest", feature = "native-tls"))))]
     #[must_use]
-    pub fn reqwest() -> ClientBuilder<ReqwestTransport, TokioSleep> {
-        Client::<ReqwestTransport>::builder(ReqwestTransport::default()).sleep(TokioSleep)
+    pub fn builder() -> ClientBuilder<DefaultTransport, DefaultSleep> {
+        ClientBuilder::new(DefaultTransport::default()).sleep(DefaultSleep::default())
     }
-}
 
-#[cfg(all(target_arch = "wasm32", target_env = "p2"))]
-impl Client<Wasip2Transport, Wasip2Sleep> {
-    /// Starts configuring a WASI HTTP 0.2 client with monotonic-clock retries.
-    ///
-    /// Use this in a `wasm32-wasip2` component whose host provides `wasi:http`
-    /// and `wasi:clocks` 0.2.
+    /// Creates a client from standard Jev environment variables.
     ///
     /// ```no_run
     /// use jevrs::{Client, Error};
     ///
     /// # fn configured() -> Result<(), Error> {
-    /// let client = Client::wasip2().from_env()?.build()?;
+    /// let client = Client::from_env()?;
     /// # let _ = client;
     /// # Ok(())
     /// # }
     /// ```
-    #[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p2"))))]
-    #[must_use]
-    pub fn wasip2() -> ClientBuilder<Wasip2Transport, Wasip2Sleep> {
-        Client::<Wasip2Transport>::builder(Wasip2Transport).sleep(Wasip2Sleep)
-    }
-}
-
-#[cfg(all(target_arch = "wasm32", target_env = "p3"))]
-impl Client<Wasip3Transport, Wasip3Sleep> {
-    /// Starts configuring a WASI HTTP 0.3 client with monotonic-clock retries.
     ///
-    /// Use this in a `wasm32-wasip3` component whose host provides `wasi:http`
-    /// and `wasi:clocks` 0.3.
+    /// # Errors
     ///
-    /// ```no_run
-    /// use jevrs::{Client, Error};
-    ///
-    /// # fn configured() -> Result<(), Error> {
-    /// let client = Client::wasip3().from_env()?.build()?;
-    /// # let _ = client;
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg_attr(docsrs, doc(cfg(all(target_arch = "wasm32", target_env = "p3"))))]
-    #[must_use]
-    pub fn wasip3() -> ClientBuilder<Wasip3Transport, Wasip3Sleep> {
-        Client::<Wasip3Transport>::builder(Wasip3Transport).sleep(Wasip3Sleep)
+    /// Returns [`Error::Auth`] when `TYPESAFE_API_KEY` is unavailable, or a
+    /// configuration error when the environment contains an invalid base URL.
+    pub fn from_env() -> Result<Self, Error> {
+        Self::builder().from_env()?.build()
     }
 }
 
@@ -155,7 +190,7 @@ impl<T: Transport, S: Sleep> Client<T, S> {
     /// }
     ///
     /// # async fn run() -> Result<(), jevrs::Error> {
-    /// let client = Client::reqwest().from_env()?.build()?;
+    /// let client = Client::from_env()?;
     /// let triage = client
     ///     .ask::<Triage>(&"Help! My payouts have been failing for 3 days.")
     ///     .await?;
@@ -313,7 +348,7 @@ impl<T: Transport, S: Sleep> fmt::Debug for Client<T, S> {
 /// use jevrs::{Client, ClientBuilder, Error, Model, Transport};
 ///
 /// fn configured<T: Transport>(transport: T) -> Result<Client<T>, Error> {
-///     let builder: ClientBuilder<T> = Client::builder(transport);
+///     let builder: ClientBuilder<T> = ClientBuilder::new(transport);
 ///     builder.from_env()?.model(Model::PREVIEW).build()
 /// }
 /// ```
@@ -328,7 +363,11 @@ pub struct ClientBuilder<T: Transport, S: Sleep = NoSleep> {
 }
 
 impl<T: Transport> ClientBuilder<T, NoSleep> {
-    fn new(transport: T) -> Self {
+    /// Starts a client with a custom transport and retries disabled.
+    ///
+    /// Add a [`Sleep`] with [`Self::sleep`] to enable retry delays.
+    #[must_use]
+    pub fn new(transport: T) -> Self {
         Self {
             base_url: DEFAULT_BASE_URL.into(),
             api_key: None,
@@ -510,13 +549,112 @@ mod tests {
     };
     use serde_json::{Value, json};
 
-    use super::Client;
+    use super::{Client, ClientBuilder, Error};
     use crate::{
         MockError, MockSleep, MockTransport, RetryPolicy,
         test_support::{block_on, fixtures},
     };
 
     const KEY: &str = "super-secret-key";
+    #[cfg(all(
+        any(feature = "reqwest", feature = "native-tls"),
+        not(target_arch = "wasm32")
+    ))]
+    const DEFAULT_FROM_ENV_CASE: &str = "JEVRS_DEFAULT_FROM_ENV_TEST_CASE";
+
+    #[test]
+    #[cfg(any(
+        all(
+            any(feature = "reqwest", feature = "native-tls"),
+            not(target_arch = "wasm32")
+        ),
+        all(target_arch = "wasm32", target_env = "p2"),
+        all(target_arch = "wasm32", target_env = "p3")
+    ))]
+    fn default_builder_uses_target_selected_io() {
+        let _: ClientBuilder<super::DefaultTransport, super::DefaultSleep> = Client::builder();
+    }
+
+    #[test]
+    fn custom_builder_builds_with_no_sleep() {
+        let _: Client<MockTransport, crate::NoSleep> = ClientBuilder::new(MockTransport::default())
+            .api_key(KEY)
+            .build()
+            .unwrap();
+    }
+
+    #[test]
+    #[cfg(all(
+        any(feature = "reqwest", feature = "native-tls"),
+        not(target_arch = "wasm32")
+    ))]
+    fn default_from_env_matches_builder_from_env() {
+        match std::env::var(DEFAULT_FROM_ENV_CASE).as_deref() {
+            Ok("unset") => {
+                let default_error = Client::from_env().unwrap_err();
+                let builder_error = Client::builder().from_env().unwrap_err();
+                let Error::Auth {
+                    status: default_status,
+                    detail: default_detail,
+                } = default_error
+                else {
+                    panic!("default client returned the wrong error: {default_error}");
+                };
+                let Error::Auth {
+                    status: builder_status,
+                    detail: builder_detail,
+                } = builder_error
+                else {
+                    panic!("builder returned the wrong error: {builder_error}");
+                };
+                assert_eq!(default_status, builder_status);
+                assert_eq!(default_detail, builder_detail);
+            }
+            Ok("set") => {
+                let _: Client<super::DefaultTransport, super::DefaultSleep> =
+                    Client::from_env().unwrap();
+            }
+            _ => {
+                run_default_from_env_case("unset", None);
+                run_default_from_env_case("set", Some(KEY));
+            }
+        }
+    }
+
+    #[cfg(all(
+        any(feature = "reqwest", feature = "native-tls"),
+        not(target_arch = "wasm32")
+    ))]
+    // A subprocess provides two environment states because edition 2024 makes `std::env::set_var` unsafe and this crate forbids unsafe code.
+    fn run_default_from_env_case(case: &str, api_key: Option<&str>) {
+        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "client::tests::default_from_env_matches_builder_from_env",
+                "--nocapture",
+            ])
+            .env(DEFAULT_FROM_ENV_CASE, case)
+            .env_remove("TYPESAFE_BASE_URL")
+            .env_remove("TYPESAFE_API_BASE");
+        if let Some(api_key) = api_key {
+            command.env("TYPESAFE_API_KEY", api_key);
+        } else {
+            command.env_remove("TYPESAFE_API_KEY");
+        }
+        let output = command.output().unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success(),
+            "child test failed:\nstdout:\n{}\nstderr:\n{}",
+            stdout,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            stdout.contains("1 passed"),
+            "child test filter matched nothing:\nstdout:\n{stdout}"
+        );
+    }
 
     fn fixture_body(name: &str) -> Vec<u8> {
         serde_json::to_vec(&fixtures::load(name, "response")["body"]).unwrap()
@@ -541,7 +679,7 @@ mod tests {
     fn evaluate_frames_method_url_headers_and_body() {
         let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
         let recorder = transport.clone();
-        let client = Client::builder(transport)
+        let client = ClientBuilder::new(transport)
             .api_key(KEY)
             .base_url("https://example.test")
             .header(
@@ -619,7 +757,7 @@ mod tests {
     fn ask_sends_derived_shape_and_returns_typed_result() {
         let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
         let recorder = transport.clone();
-        let client = Client::builder(transport).api_key(KEY).build().unwrap();
+        let client = ClientBuilder::new(transport).api_key(KEY).build().unwrap();
 
         let triage = block_on(client.ask::<Triage>(&fixtures::STATE)).unwrap();
 
@@ -637,7 +775,7 @@ mod tests {
     fn models_frames_method_url_and_full_headers() {
         let transport = MockTransport::new([Ok(response(200, &fixture_body("models")))]);
         let recorder = transport.clone();
-        let client = Client::builder(transport)
+        let client = ClientBuilder::new(transport)
             .api_key(KEY)
             .base_url("https://example.test")
             .build()
@@ -667,7 +805,7 @@ mod tests {
         for base_url in ["https://example.test", "https://example.test/"] {
             let transport = MockTransport::new([Ok(response(200, &fixture_body("models")))]);
             let recorder = transport.clone();
-            let client = Client::builder(transport)
+            let client = ClientBuilder::new(transport)
                 .api_key(KEY)
                 .base_url(base_url)
                 .build()
@@ -684,7 +822,7 @@ mod tests {
 
     #[test]
     fn malformed_base_url_is_a_configuration_error() {
-        let error = Client::builder(MockTransport::default())
+        let error = ClientBuilder::new(MockTransport::default())
             .api_key(KEY)
             .base_url("not a url")
             .build()
@@ -695,7 +833,7 @@ mod tests {
 
     #[test]
     fn invalid_authorization_value_is_a_configuration_error() {
-        let client = Client::builder(MockTransport::default())
+        let client = ClientBuilder::new(MockTransport::default())
             .api_key("bad\nkey")
             .build()
             .unwrap();
@@ -710,7 +848,7 @@ mod tests {
     fn evaluate_with_overrides_the_body_model() {
         let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
         let recorder = transport.clone();
-        let client = Client::builder(transport).api_key(KEY).build().unwrap();
+        let client = ClientBuilder::new(transport).api_key(KEY).build().unwrap();
         let (questions, _, _, _) = fixtures::triage();
 
         block_on(client.evaluate_with(&Model::PREVIEW, &fixtures::STATE, &questions)).unwrap();
@@ -723,7 +861,7 @@ mod tests {
     #[test]
     fn recorded_triage_pair_round_trips() {
         let transport = MockTransport::new([Ok(response(200, &fixture_body("triage")))]);
-        let client = Client::builder(transport).api_key(KEY).build().unwrap();
+        let client = ClientBuilder::new(transport).api_key(KEY).build().unwrap();
         let (questions, urgent, department, frustration) = fixtures::triage();
 
         let answers = block_on(client.evaluate(&fixtures::STATE, &questions)).unwrap();
@@ -745,7 +883,7 @@ mod tests {
         let sleep = MockSleep::default();
         let sleep_recorder = sleep.clone();
         let policy = fixed_retry();
-        let client = Client::builder(transport)
+        let client = ClientBuilder::new(transport)
             .api_key(KEY)
             .retry(policy)
             .sleep(sleep)
@@ -770,7 +908,7 @@ mod tests {
             MockTransport::new([Ok(limited), Ok(response(200, &fixture_body("triage")))]);
         let sleep = MockSleep::default();
         let sleep_recorder = sleep.clone();
-        let client = Client::builder(transport)
+        let client = ClientBuilder::new(transport)
             .api_key(KEY)
             .sleep(sleep)
             .build()
@@ -792,7 +930,7 @@ mod tests {
         let recorder = transport.clone();
         let sleep = MockSleep::default();
         let sleep_recorder = sleep.clone();
-        let client = Client::builder(transport)
+        let client = ClientBuilder::new(transport)
             .api_key(KEY)
             .retry(fixed_retry())
             .sleep(sleep)
@@ -819,7 +957,7 @@ mod tests {
         let recorder = transport.clone();
         let sleep = MockSleep::default();
         let sleep_recorder = sleep.clone();
-        let client = Client::builder(transport)
+        let client = ClientBuilder::new(transport)
             .api_key(KEY)
             .sleep(sleep)
             .build()
@@ -843,7 +981,7 @@ mod tests {
             Ok(response(200, &fixture_body("triage"))),
         ]);
         let retrying_recorder = retrying.clone();
-        let client = Client::builder(retrying)
+        let client = ClientBuilder::new(retrying)
             .api_key(KEY)
             .sleep(MockSleep::default())
             .build()
@@ -857,7 +995,7 @@ mod tests {
             Ok(response(200, &fixture_body("triage"))),
         ]);
         let failing_recorder = failing.clone();
-        let client = Client::builder(failing)
+        let client = ClientBuilder::new(failing)
             .api_key(KEY)
             .sleep(MockSleep::default())
             .build()
@@ -875,7 +1013,7 @@ mod tests {
             Ok(response(200, &fixture_body("triage"))),
         ]);
         let recorder = transport.clone();
-        let client = Client::builder(transport)
+        let client = ClientBuilder::new(transport)
             .api_key(KEY)
             .retry(fixed_retry())
             .build()
@@ -890,7 +1028,7 @@ mod tests {
 
     #[test]
     fn debug_redacts_api_key() {
-        let builder = Client::builder(MockTransport::default()).api_key(KEY);
+        let builder = ClientBuilder::new(MockTransport::default()).api_key(KEY);
         let builder_debug = format!("{builder:?}");
         assert!(builder_debug.contains("***"));
         assert!(!builder_debug.contains(KEY));
@@ -907,7 +1045,7 @@ mod tests {
         body["models"][0]["future_field"] = json!(true);
         let transport =
             MockTransport::new([Ok(response(200, &serde_json::to_vec(&body).unwrap()))]);
-        let client = Client::builder(transport).api_key(KEY).build().unwrap();
+        let client = ClientBuilder::new(transport).api_key(KEY).build().unwrap();
 
         let models = block_on(client.models()).unwrap();
 

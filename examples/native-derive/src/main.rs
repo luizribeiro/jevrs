@@ -45,7 +45,7 @@ struct Triage {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::reqwest().from_env()?.build()?;
+    let client = Client::from_env()?;
     let answers = client.ask::<Triage>(&STATE).await?;
 
     println!("model: {}", answers.model());
