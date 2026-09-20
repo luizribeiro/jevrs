@@ -4,6 +4,7 @@
 //! applications can provide their own [`Transport`] and [`Sleep`]
 //! implementations.
 
+mod client;
 #[cfg(feature = "test-util")]
 mod mock;
 mod retry;
@@ -11,6 +12,7 @@ mod retry;
 mod test_support;
 mod transport;
 
+pub use client::{Client, ClientBuilder, ModelInfo};
 pub use jevrs_core::*;
 #[cfg(feature = "test-util")]
 pub use mock::{MockError, MockSleep, MockTransport};

@@ -30,6 +30,8 @@ version = "0.0.0"
 dependencies = [
  "http",
  "jevrs-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
