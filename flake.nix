@@ -73,6 +73,14 @@
               offline = false;
             };
           };
+          features = cargoHook {
+            name = "features-hook";
+            text = ''
+              cargo check -p jevrs --no-default-features --locked
+              cargo check -p jevrs --no-default-features --features reqwest --locked
+              cargo check -p jevrs --no-default-features --features native-tls --locked
+            '';
+          };
           cargo-nextest = cargoHook {
             name = "cargo-nextest-hook";
             runtimeInputs = [ pkgs.cargo-nextest ];
