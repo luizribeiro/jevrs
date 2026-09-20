@@ -18,7 +18,7 @@
       system: let
         overlays = [(import rust-overlay)];
         pkgs = import nixpkgs {inherit system overlays;};
-        toolchain = pkgs.rust-bin.stable.latest.default.override {
+        toolchain = pkgs.rust-bin.stable.latest.minimal.override {
           extensions = ["clippy" "rust-analyzer" "rust-src" "rustfmt"];
           targets = ["wasm32-wasip2"];
         };
