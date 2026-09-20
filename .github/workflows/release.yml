@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: nixbuild/nix-quick-install-action@v35
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'Cargo.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+      - name: Check flake
+        run: nix flake check
+      - name: Verify tag matches workspace version
+        run: |
+          version="$(awk '
+            /^\[workspace\.package\]$/ { in_package = 1; next }
+            /^\[/ { in_package = 0 }
+            in_package && /^version = "/ {
+              sub(/^version = "/, "")
+              sub(/".*$/, "")
+              print
+              exit
+            }
+          ' Cargo.toml)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match workspace version $version" >&2
+            exit 1
+          fi
+      - name: Run pre-commit hooks
+        run: nix develop -c pre-commit run --all-files --show-diff-on-failure
+      - name: Run pre-push hooks
+        run: nix develop -c pre-commit run --all-files --hook-stage pre-push --show-diff-on-failure
+      - name: Check dependency advisories
+        run: nix develop -c cargo deny check advisories
+
+  publish:
+    needs: verify
+    environment: release
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: nixbuild/nix-quick-install-action@v35
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'Cargo.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - name: Publish crates
+        run: nix develop -c cargo publish --workspace --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+          gh release create "$GITHUB_REF_NAME" \
+            --title "jevrs ${GITHUB_REF_NAME#v}" \
+            --notes-file release-notes.md
