@@ -122,9 +122,11 @@ pub trait Levels: Indexed + Ord {
 
 /// A runtime-defined set of named choices.
 ///
-/// Use this with [`Questions::choice_dyn`](crate::Questions::choice_dyn) when
-/// keys come from configuration or a database. Use [`Options`] for static
-/// criteria and [`crate::ChoiceAnswer`] for its typed result.
+/// [`Questions::choice_dyn`](crate::Questions::choice_dyn) validates raw items
+/// and fills the question ID in [`Error::InvalidCriteria`]. Use this type to
+/// validate once up front and reuse configured criteria across batches; use
+/// [`Options`] for static criteria and [`crate::ChoiceAnswer`] for its typed
+/// result.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DynOptions {
     keys: Vec<String>,
@@ -223,9 +225,10 @@ impl IntoIterator for DynOptions {
 
 /// A runtime-defined ordered scoring scale.
 ///
-/// Use this with [`Questions::score_dyn`](crate::Questions::score_dyn) when
-/// level descriptions are runtime data. Use [`Levels`] for a static scale and
-/// [`crate::ScoreAnswer`] for its typed result.
+/// [`Questions::score_dyn`](crate::Questions::score_dyn) validates raw items and
+/// fills the question ID in [`Error::InvalidCriteria`]. Use this type to
+/// validate once up front and reuse configured criteria across batches; use
+/// [`Levels`] for a static scale and [`crate::ScoreAnswer`] for its typed result.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DynLevels(Vec<String>);
 

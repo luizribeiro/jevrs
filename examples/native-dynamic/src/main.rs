@@ -6,7 +6,7 @@
 //! cargo run -p native-dynamic
 //! ```
 
-use jevrs::{Client, DynLevels, DynOptions, Questions};
+use jevrs::{Client, Questions};
 
 const STATE: &str = "Help! My payouts have been failing for 3 days.";
 
@@ -22,16 +22,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let department = questions.choice_dyn(
         "department",
         "Which team should handle this?",
-        DynOptions::new([
+        [
             ("billing", Some("Payments, invoicing, refunds")),
             ("technical", Some("Bugs, outages, integrations")),
             ("sales", None),
-        ])?,
+        ],
     )?;
     let frustration = questions.score_dyn(
         "frustration",
         "How frustrated is the customer?",
-        DynLevels::new(["Calm", "Frustrated", "Very angry"])?,
+        ["Calm", "Frustrated", "Very angry"],
     )?;
 
     let client = Client::reqwest().from_env()?.build()?;

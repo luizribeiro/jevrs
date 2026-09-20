@@ -60,10 +60,13 @@ impl<Q: Question> fmt::Debug for Handle<Q> {
 
 /// An insertion-ordered collection of questions sent in one Jev request.
 ///
-/// Use the returned handles to retrieve typed answers after decoding.
+/// Use the returned handles to retrieve typed answers after decoding. Dynamic
+/// methods validate raw criteria and fill the question ID in
+/// [`Error::InvalidCriteria`]; use [`DynOptions`] or [`DynLevels`] to validate
+/// once up front and reuse them.
 ///
 /// ```
-/// use jevrs_core::{DynLevels, DynOptions, Questions};
+/// use jevrs_core::Questions;
 ///
 /// let mut questions = Questions::new();
 /// let urgent = questions.noul_with(
@@ -75,16 +78,16 @@ impl<Q: Question> fmt::Debug for Handle<Q> {
 /// let department = questions.choice_dyn(
 ///     "department",
 ///     "Which team should handle this?",
-///     DynOptions::new([
+///     [
 ///         ("billing", Some("Payments, invoicing, refunds")),
 ///         ("technical", Some("Bugs, outages, integrations")),
 ///         ("sales", None),
-///     ])?,
+///     ],
 /// )?;
 /// let frustration = questions.score_dyn(
 ///     "frustration",
 ///     "How frustrated is the customer?",
-///     DynLevels::new(["Calm", "Frustrated", "Very angry"])?
+///     ["Calm", "Frustrated", "Very angry"],
 /// )?;
 ///
 /// assert_eq!(questions.len(), 3);

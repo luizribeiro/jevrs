@@ -96,13 +96,16 @@ assert_eq!(Priority::all(), &[Priority::Normal, Priority::Urgent]);
 
 # The dynamic path
 
-Use [`struct@Questions`] when criteria come from configuration or a database. Create
-validated [`DynOptions`] and [`DynLevels`], keep each typed [`Handle`], then
-read the matching answer with [`Answers::get`]. Dynamic choices produce
-[`DynChoiceAnswer`]; dynamic scores produce [`DynScoreAnswer`].
+Use [`struct@Questions`] when criteria come from configuration or a database.
+The builder validates the criteria and names the question in
+[`Error::InvalidCriteria`]. Use [`DynOptions`] and [`DynLevels`] to validate
+once up front, such as at startup from configuration, and reuse the criteria
+across batches. Keep each typed [`Handle`], then read the matching answer with
+[`Answers::get`]. Dynamic choices produce [`DynChoiceAnswer`]; dynamic scores
+produce [`DynScoreAnswer`].
 
 ```no_run
-use jevrs::{Client, DynLevels, DynOptions, Questions};
+use jevrs::{Client, Questions};
 
 # async fn run() -> Result<(), jevrs::Error> {
 let mut questions = Questions::new();
@@ -115,16 +118,16 @@ let urgent = questions.noul_with(
 let department = questions.choice_dyn(
     "department",
     "Which team should handle this?",
-    DynOptions::new([
+    [
         ("billing", Some("Payments, invoicing, refunds")),
         ("technical", Some("Bugs, outages, integrations")),
         ("sales", None),
-    ])?,
+    ],
 )?;
 let frustration = questions.score_dyn(
     "frustration",
     "How frustrated is the customer?",
-    DynLevels::new(["Calm", "Frustrated", "Very angry"])?
+    ["Calm", "Frustrated", "Very angry"],
 )?;
 
 let client = Client::reqwest().from_env()?.build()?;
