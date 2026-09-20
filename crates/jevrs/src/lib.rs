@@ -52,8 +52,9 @@
 //!
 //! Concrete transports are selected with crate features. With none enabled,
 //! applications can provide their own [`Transport`] and [`Sleep`]
-//! implementations. The `wasip2`, `wasip3`, and `web` transport features are
-//! reserved for future milestones and currently add no implementation.
+//! implementations. The `wasip2` feature provides WASI HTTP 0.2 transport and
+//! sleep implementations on `wasm32`; `wasip3` and `web` remain reserved for
+//! future milestones.
 
 mod client;
 #[cfg(feature = "test-util")]

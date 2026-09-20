@@ -92,7 +92,10 @@
           };
           wasip2-build = cargoHook {
             name = "wasip2-build-hook";
-            text = "cargo build -p jevrs-core --target wasm32-wasip2 --locked";
+            text = ''
+              cargo build -p jevrs-core --target wasm32-wasip2 --locked
+              cargo clippy -p jevrs --no-default-features --features wasip2 --target wasm32-wasip2 --all-targets --locked -- -D warnings
+            '';
           };
           docs = cargoHook {
             name = "docs-hook";

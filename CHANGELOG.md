@@ -15,3 +15,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   by the default `derive` feature.
 - Typed question sets with `derive(Questions)`, `Answered<T>`, `Client::ask`,
   and the `native-derive` example.
+- WASI HTTP 0.2 transport, monotonic-clock retry sleep, and `Client::wasip2()`
+  behind the `wasip2` feature on `wasm32-wasip2`.
