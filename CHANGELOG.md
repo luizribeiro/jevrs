@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `jevrs-core` and `jevrs-derive` ship their own READMEs on crates.io.
+- The `jevrs` guide explains every way to construct a client, not only
+  `Client::from_env`.
+
 ## [0.1.0] - 2026-09-20
 
 ### Added
