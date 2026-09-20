@@ -5,6 +5,7 @@ members = [
   "examples/native-derive",
   "examples/native-dynamic",
   "examples/wasip2",
+  "examples/wasip3",
   "xtask",
 ]
 

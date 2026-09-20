@@ -1802,6 +1802,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasip3-example"
+version = "0.0.0"
+dependencies = [
+ "jevrs",
+ "wasip3",
+]
+
+[[package]]
 name = "wasm-bindgen"
 version = "0.2.128"
 source = "registry+https://github.com/rust-lang/crates.io-index"

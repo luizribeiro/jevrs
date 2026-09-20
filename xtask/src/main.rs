@@ -25,8 +25,10 @@ async fn main() -> Result<(), BoxError> {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
         Some("mock") => serve(parse_port(&mut args)?).await,
-        Some("wasip2-smoke") if args.next().is_none() => wasip2_smoke(),
-        _ => Err("usage: cargo xtask <mock [--port N] | wasip2-smoke>".into()),
+        Some("wasi-smoke") => wasi_smoke(parse_wasi_target(&mut args)?),
+        _ => {
+            Err("usage: cargo xtask <mock [--port N] | wasi-smoke --target {wasip2,wasip3}>".into())
+        }
     }
 }
 
@@ -62,24 +64,72 @@ async fn serve_connection(stream: TcpStream) {
     }
 }
 
-fn wasip2_smoke() -> Result<(), BoxError> {
+#[derive(Clone, Copy)]
+enum WasiTarget {
+    Wasip2,
+    Wasip3,
+}
+
+impl WasiTarget {
+    const fn package(self) -> &'static str {
+        match self {
+            Self::Wasip2 => "wasip2-example",
+            Self::Wasip3 => "wasip3-example",
+        }
+    }
+
+    const fn triple(self) -> &'static str {
+        match self {
+            Self::Wasip2 => "wasm32-wasip2",
+            Self::Wasip3 => "wasm32-wasip3",
+        }
+    }
+
+    const fn binary(self) -> &'static str {
+        match self {
+            Self::Wasip2 => "wasip2_example",
+            Self::Wasip3 => "wasip3_example",
+        }
+    }
+}
+
+fn parse_wasi_target(args: &mut impl Iterator<Item = String>) -> Result<WasiTarget, BoxError> {
+    let flag = args.next();
+    let target = args.next();
+    if args.next().is_some() || flag.as_deref() != Some("--target") {
+        return Err("usage: cargo xtask wasi-smoke --target {wasip2,wasip3}".into());
+    }
+    match target.as_deref() {
+        Some("wasip2") => Ok(WasiTarget::Wasip2),
+        Some("wasip3") => Ok(WasiTarget::Wasip3),
+        _ => Err("target must be wasip2 or wasip3".into()),
+    }
+}
+
+fn wasi_smoke(target: WasiTarget) -> Result<(), BoxError> {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .ok_or("xtask must be inside the workspace")?;
-    require_success(
-        Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "wasip2-example",
-                "--target",
-                "wasm32-wasip2",
-                "--locked",
-            ])
-            .current_dir(workspace)
-            .status()?,
-        "building the wasip2 example",
-    )?;
+    let mut build = match target {
+        WasiTarget::Wasip2 => Command::new("cargo"),
+        WasiTarget::Wasip3 => {
+            let mut command = Command::new("nix");
+            command.args(["develop", ".#nightly", "-c", "cargo"]);
+            command
+        }
+    };
+    let status = build
+        .args([
+            "build",
+            "-p",
+            target.package(),
+            "--target",
+            target.triple(),
+            "--locked",
+        ])
+        .current_dir(workspace)
+        .status()?;
+    require_success(status, &format!("building the {} example", target.triple()))?;
 
     let mut mock = MockChild(
         Command::new(env::current_exe()?)
@@ -104,8 +154,12 @@ fn wasip2_smoke() -> Result<(), BoxError> {
             "TYPESAFE_API_KEY=test-key",
             "--env",
             &format!("TYPESAFE_BASE_URL={base_url}"),
-            "target/wasm32-wasip2/debug/wasip2_example.wasm",
         ])
+        .arg(format!(
+            "target/{}/debug/{}.wasm",
+            target.triple(),
+            target.binary()
+        ))
         .current_dir(workspace)
         .output()?;
     require_success(output.status, &String::from_utf8_lossy(&output.stderr))?;
@@ -114,7 +168,11 @@ fn wasip2_smoke() -> Result<(), BoxError> {
     if !output.contains(&format!("department: {department}"))
         || !output.contains(&format!("({frustration})"))
     {
-        return Err(format!("wasip2 output did not contain the recorded picks:\n{output}").into());
+        return Err(format!(
+            "{} output did not contain the recorded picks:\n{output}",
+            target.triple()
+        )
+        .into());
     }
     print!("{output}");
     std::io::stdout().flush()?;
@@ -219,4 +277,28 @@ fn json_response(status: StatusCode, body: &Value) -> Response<Full<Bytes>> {
         hyper::header::HeaderValue::from_static("application/json"),
     );
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_wasi_target;
+
+    #[test]
+    fn parses_each_wasi_smoke_target() {
+        let mut wasip2_args = ["--target".to_owned(), "wasip2".to_owned()].into_iter();
+        let mut wasip3_args = ["--target".to_owned(), "wasip3".to_owned()].into_iter();
+        let wasip2 = parse_wasi_target(&mut wasip2_args).unwrap();
+        let wasip3 = parse_wasi_target(&mut wasip3_args).unwrap();
+
+        assert_eq!(wasip2.triple(), "wasm32-wasip2");
+        assert_eq!(wasip3.triple(), "wasm32-wasip3");
+    }
+
+    #[test]
+    fn rejects_an_unknown_wasi_smoke_target() {
+        let mut args = ["--target".to_owned(), "wasip4".to_owned()].into_iter();
+        let error = parse_wasi_target(&mut args).err().unwrap();
+
+        assert_eq!(error.to_string(), "target must be wasip2 or wasip3");
+    }
 }

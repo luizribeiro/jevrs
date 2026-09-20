@@ -1,0 +1,20 @@
+[package]
+name = "wasip3-example"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "wasip3_example"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[target.'cfg(all(target_arch = "wasm32", target_env = "p3"))'.dependencies]
+jevrs = { path = "../../crates/jevrs", default-features = false, features = [
+  "wasip3",
+] }
+wasip3 = "0.9"

@@ -46,11 +46,13 @@
           ];
         };
         cargoFiles = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs|tests/fixtures/.*\\.json)$";
+        wasip3Files = "^(crates/jevrs/src/(wasip3|wasi_common|lib|client)\\.rs|crates/jevrs/Cargo\\.toml|examples/wasip3/|xtask/|flake\\.nix|Cargo\\.lock|tests/fixtures/)";
         cargoHook =
           {
             name,
             text,
             runtimeInputs ? [ ],
+            files ? cargoFiles,
           }:
           {
             enable = true;
@@ -60,7 +62,7 @@
                 runtimeInputs = [ toolchain ] ++ runtimeInputs;
               }
             }/bin/${name}";
-            files = cargoFiles;
+            inherit files;
             pass_filenames = false;
           };
         cargoHooks = {
@@ -111,7 +113,16 @@
           wasip2-smoke = cargoHook {
             name = "wasip2-smoke-hook";
             runtimeInputs = [ pkgs.wasmtime ];
-            text = "cargo xtask wasip2-smoke";
+            text = "cargo xtask wasi-smoke --target wasip2";
+          };
+          wasip3 = cargoHook {
+            name = "wasip3-hook";
+            runtimeInputs = [ pkgs.wasmtime ];
+            files = wasip3Files;
+            text = ''
+              nix develop .#nightly -c cargo clippy -p jevrs --no-default-features --features wasip3 --target wasm32-wasip3 --all-targets --locked -- -D warnings
+              cargo xtask wasi-smoke --target wasip3
+            '';
           };
           docs = cargoHook {
             name = "docs-hook";
