@@ -14,7 +14,7 @@ bytes = "1"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
-jevrs-core = { path = "../crates/jevrs-core", version = "0.0.0" }
+jevrs-core = { path = "../crates/jevrs-core", version = "0.1.0" }
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread"] }
 

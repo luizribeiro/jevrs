@@ -536,7 +536,10 @@ mod tests {
         );
         assert_eq!(request.headers()[header::CONTENT_TYPE], "application/json");
         assert_eq!(request.headers()[header::ACCEPT], "application/json");
-        assert_eq!(request.headers()[header::USER_AGENT], "jevrs/0.0.0");
+        assert_eq!(
+            request.headers()[header::USER_AGENT],
+            concat!("jevrs/", env!("CARGO_PKG_VERSION"))
+        );
         assert_eq!(request.headers()["x-extra"], "last");
         let body: Value = serde_json::from_slice(request.body()).unwrap();
         assert_eq!(body["state"], fixtures::STATE);
@@ -624,7 +627,10 @@ mod tests {
         );
         assert_eq!(request.headers()[header::CONTENT_TYPE], "application/json");
         assert_eq!(request.headers()[header::ACCEPT], "application/json");
-        assert_eq!(request.headers()[header::USER_AGENT], "jevrs/0.0.0");
+        assert_eq!(
+            request.headers()[header::USER_AGENT],
+            concat!("jevrs/", env!("CARGO_PKG_VERSION"))
+        );
     }
 
     #[test]

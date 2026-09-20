@@ -105,6 +105,10 @@
             files = "(^|/)(Cargo\\.(toml|lock)|deny\\.toml)$";
             text = "cargo deny check bans licenses sources";
           };
+          cargo-package = cargoHook {
+            name = "cargo-package-hook";
+            text = "cargo package -p jevrs-core -p jevrs-derive -p jevrs --locked --allow-dirty";
+          };
           doctests = cargoHook {
             name = "doctests-hook";
             text = "cargo test --doc --workspace --all-features --locked";

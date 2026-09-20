@@ -1,10 +1,19 @@
 [package]
 name = "jevrs-core"
+description = "Portable sans-I/O types, builders, and codecs for the Jev API"
+keywords = ["jev", "ai", "api", "typesafe"]
+categories = ["api-bindings"]
+readme = "../../README.md"
+documentation = "https://docs.rs/jevrs-core"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lints]
 workspace = true
