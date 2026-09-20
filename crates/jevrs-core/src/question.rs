@@ -9,28 +9,39 @@ fn nearest_index(expected: f64, maximum: usize) -> usize {
 }
 
 /// Binds a question marker to the answer type returned for it.
+///
+/// Implement this only for a custom builder integration. The built-in marker
+/// types cover every Jev question kind.
 pub trait Question: 'static {
-    /// The answer produced for this question kind.
+    /// Selects the answer type that a [`Handle`](crate::Handle) retrieves.
     type Answer: Send + Sync + 'static;
 }
 
-/// Marker for a yes/no question.
+/// Marker to use for a yes/no question in a typed handle or [`QuestionSet`](crate::QuestionSet).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct NoulQ;
 
-/// Marker for a choice question using static options `O`.
+/// Marker to use when [`Options`] define a choice at compile time.
+///
+/// Use [`DynChoiceQ`] when options are supplied at runtime.
 #[derive(Clone, Copy, Debug)]
 pub struct ChoiceQ<O: Options>(PhantomData<O>);
 
-/// Marker for a score question using static levels `L`.
+/// Marker to use when [`Levels`] define a score scale at compile time.
+///
+/// Use [`DynScoreQ`] when levels are supplied at runtime.
 #[derive(Clone, Copy, Debug)]
 pub struct ScoreQ<L: Levels>(PhantomData<L>);
 
-/// Marker for a choice question using runtime-defined options.
+/// Marker returned for a choice built with runtime-defined [`crate::DynOptions`].
+///
+/// Use [`ChoiceQ`] for static options.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DynChoiceQ;
 
-/// Marker for a score question using runtime-defined levels.
+/// Marker returned for a score built with runtime-defined [`crate::DynLevels`].
+///
+/// Use [`ScoreQ`] for static levels.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DynScoreQ;
 
@@ -46,13 +57,13 @@ impl<L: Levels> Default for ScoreQ<L> {
     }
 }
 
-/// Readable alias for a yes/no question marker in a [`crate::QuestionSet`].
+/// Readable alias to use for a yes/no field in a [`crate::QuestionSet`].
 pub type Noul = NoulQ;
 
-/// Readable alias for a static choice question marker in a [`crate::QuestionSet`].
+/// Readable alias to use for a static choice field in a [`crate::QuestionSet`].
 pub type Choice<O> = ChoiceQ<O>;
 
-/// Readable alias for a static score question marker in a [`crate::QuestionSet`].
+/// Readable alias to use for a static score field in a [`crate::QuestionSet`].
 pub type Score<L> = ScoreQ<L>;
 
 impl Question for NoulQ {
@@ -76,14 +87,17 @@ impl Question for DynScoreQ {
 }
 
 /// The probability assigned to a yes/no question's positive outcome.
+///
+/// Use [`Self::is_yes`] when your application has a decision threshold, or
+/// read [`Self::p`] when it needs the continuous probability.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NoulAnswer {
-    /// Probability that the answer is yes.
+    /// Use this probability when ranking or displaying the positive outcome.
     pub p: Probability,
 }
 
 impl NoulAnswer {
-    /// Reports whether the positive probability meets `threshold`.
+    /// Applies an application-defined inclusive threshold to the probability.
     #[must_use]
     pub fn is_yes(&self, threshold: f64) -> bool {
         self.p.get() >= threshold
@@ -91,23 +105,29 @@ impl NoulAnswer {
 }
 
 /// The selected option and probability distribution for a static choice.
+///
+/// Use this typed result with [`ChoiceQ`]. Use [`DynChoiceAnswer`] when option
+/// keys were supplied at runtime.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChoiceAnswer<O: Options> {
-    /// The option selected by the model.
+    /// Use the selected enum value for ordinary branching.
     pub pick: O,
-    /// One probability per option.
+    /// Use the full distribution when the winning option alone is insufficient.
     pub probs: O::Map<Probability>,
-    /// The model's confidence in this answer.
+    /// Use this confidence to decide whether human review is needed.
     pub confidence: Confidence,
 }
 
 /// The expected score and probability distribution for static levels.
+///
+/// Use this typed result with [`ScoreQ`]. Use [`DynScoreAnswer`] when level
+/// descriptions were supplied at runtime.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScoreAnswer<L: Levels> {
     expected: f64,
-    /// One probability per level.
+    /// Use the full distribution when expected or nearest level loses detail.
     pub probs: L::Map<Probability>,
-    /// The model's confidence in this answer.
+    /// Use this confidence to decide whether human review is needed.
     pub confidence: Confidence,
 }
 
@@ -120,20 +140,20 @@ impl<L: Levels> ScoreAnswer<L> {
         }
     }
 
-    /// Returns the probability-weighted level index reported by the API.
+    /// Returns the fractional score when preserving model uncertainty matters.
     #[must_use]
     pub fn expected(&self) -> f64 {
         self.expected
     }
 
-    /// Returns the level nearest to [`ScoreAnswer::expected`].
+    /// Returns a level when the fractional [`Self::expected`] must be bucketed.
     #[must_use]
     pub fn nearest(&self) -> L {
         let index = nearest_index(self.expected, L::N.saturating_sub(1));
         L::all()[index]
     }
 
-    /// Returns the first level having the greatest probability.
+    /// Returns the most probable level instead of rounding [`Self::expected`].
     #[must_use]
     pub fn argmax(&self) -> L {
         let mut best = L::all()[0];
@@ -147,25 +167,31 @@ impl<L: Levels> ScoreAnswer<L> {
 }
 
 /// The selected option and probability distribution for a dynamic choice.
+///
+/// Use this with [`DynChoiceQ`] and runtime [`crate::DynOptions`]. Use
+/// [`ChoiceAnswer`] when an enum defines the choices.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DynChoiceAnswer {
-    /// The option key selected by the model.
+    /// Use the selected runtime key for ordinary branching.
     pub pick: String,
-    /// Keyed probabilities in the originating [`crate::DynOptions`] order.
+    /// Use the ordered distribution when the winning key alone is insufficient.
     pub probs: Vec<(String, Probability)>,
-    /// The model's confidence in this answer.
+    /// Use this confidence to decide whether human review is needed.
     pub confidence: Confidence,
 }
 
 /// The expected score and probability distribution for dynamic levels.
+///
+/// Use this with [`DynScoreQ`] and runtime [`crate::DynLevels`]. Use
+/// [`ScoreAnswer`] when an enum defines the levels.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DynScoreAnswer {
     expected: f64,
-    /// Probabilities in ascending score order.
+    /// Use this distribution with [`Self::legend`] to inspect every level.
     pub probs: Vec<Probability>,
-    /// Level descriptions echoed by the API in ascending score order.
+    /// Use these descriptions to label [`Self::probs`] and returned indexes.
     pub legend: Vec<String>,
-    /// The model's confidence in this answer.
+    /// Use this confidence to decide whether human review is needed.
     pub confidence: Confidence,
 }
 
@@ -184,19 +210,19 @@ impl DynScoreAnswer {
         }
     }
 
-    /// Returns the probability-weighted level index reported by the API.
+    /// Returns the fractional score when preserving model uncertainty matters.
     #[must_use]
     pub fn expected(&self) -> f64 {
         self.expected
     }
 
-    /// Returns the index nearest to [`DynScoreAnswer::expected`].
+    /// Returns an index when the fractional [`Self::expected`] must be bucketed.
     #[must_use]
     pub fn nearest(&self) -> usize {
         nearest_index(self.expected, self.probs.len().saturating_sub(1))
     }
 
-    /// Returns the first index having the greatest probability.
+    /// Returns the most probable index instead of rounding [`Self::expected`].
     #[must_use]
     pub fn argmax(&self) -> usize {
         let mut best = 0;

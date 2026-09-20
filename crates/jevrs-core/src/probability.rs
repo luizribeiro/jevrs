@@ -10,7 +10,7 @@ macro_rules! unit_interval {
         pub struct $name(f64);
 
         impl $name {
-            /// Creates a value when `value` is finite and between zero and one.
+            /// Validates an untrusted floating-point value at an input boundary.
             #[must_use]
             pub const fn new(value: f64) -> Option<Self> {
                 if value >= 0.0 && value <= 1.0 {
@@ -20,7 +20,7 @@ macro_rules! unit_interval {
                 }
             }
 
-            /// Returns the wrapped value.
+            /// Returns the scalar for arithmetic, formatting, or comparison.
             #[must_use]
             pub const fn get(self) -> f64 {
                 self.0
@@ -63,7 +63,11 @@ unit_interval!(
 
 unit_interval!(
     Confidence,
-    "A model confidence constrained to the inclusive range from zero to one."
+    "A model confidence constrained to the inclusive range from zero to one.\n\n\
+     Use this when comparing or displaying the confidence on a \
+     [`ChoiceAnswer`](crate::ChoiceAnswer), [`ScoreAnswer`](crate::ScoreAnswer), \
+     [`DynChoiceAnswer`](crate::DynChoiceAnswer), or \
+     [`DynScoreAnswer`](crate::DynScoreAnswer)."
 );
 
 #[cfg(test)]

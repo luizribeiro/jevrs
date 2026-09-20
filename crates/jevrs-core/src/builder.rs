@@ -21,14 +21,19 @@ use crate::{
 
 static NEXT_BATCH_ID: AtomicU64 = AtomicU64::new(1);
 
-/// Identifies the [`Questions`] builder that created a typed [`Handle`].
+/// Identifies the [`Questions`] batch that created a typed [`Handle`].
+///
+/// You normally see this only in [`Handle`]'s debug output or a mismatched
+/// handle panic; [`Answers`](crate::Answers) checks it automatically.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BatchId(u64);
 
 /// A typed reference to one question in a [`Questions`] batch.
 ///
-/// Passing a handle to [`crate::Answers`] from a different batch is a caller
-/// error and panics when the answer is retrieved.
+/// Keep the handle returned by a builder method, then pass it to
+/// [`Answers::get`](crate::Answers::get) after evaluation. The marker `Q`
+/// selects the answer type at compile time. Passing a handle from another
+/// batch is a caller error and panics when the answer is retrieved.
 pub struct Handle<Q: Question> {
     pub(crate) idx: u32,
     pub(crate) batch: BatchId,
@@ -92,7 +97,10 @@ pub struct Questions {
 }
 
 impl Questions {
-    /// Creates an empty question batch with a distinct identity.
+    /// Starts a batch when questions will be added individually at runtime.
+    ///
+    /// Use [`QuestionSet`](crate::QuestionSet) instead when the whole batch is
+    /// fixed at compile time.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -101,7 +109,10 @@ impl Questions {
         }
     }
 
-    /// Adds a yes/no question without outcome descriptions.
+    /// Adds a yes/no question when the instruction alone defines both outcomes.
+    ///
+    /// Use [`Self::noul_with`] when explicit yes and no criteria improve the
+    /// decision boundary.
     ///
     /// # Errors
     ///
@@ -114,7 +125,9 @@ impl Questions {
         self.insert(id.into(), instructions.into(), "noul", None, decode_noul)
     }
 
-    /// Adds a yes/no question with descriptions for both outcomes.
+    /// Adds a yes/no question when both outcomes need explicit descriptions.
+    ///
+    /// Use [`Self::noul`] for a simpler instruction-only question.
     ///
     /// # Errors
     ///
@@ -139,7 +152,10 @@ impl Questions {
         )
     }
 
-    /// Adds a choice question backed by static options.
+    /// Adds a choice question whose [`Options`] are known at compile time.
+    ///
+    /// Use [`Self::choice_dyn`] when option keys come from configuration or a
+    /// database.
     ///
     /// # Errors
     ///
@@ -165,7 +181,9 @@ impl Questions {
         )
     }
 
-    /// Adds a score question backed by static levels.
+    /// Adds a score question whose ordered [`Levels`] are known at compile time.
+    ///
+    /// Use [`Self::score_dyn`] when level descriptions are runtime data.
     ///
     /// # Errors
     ///
@@ -189,7 +207,10 @@ impl Questions {
         )
     }
 
-    /// Adds a choice question backed by runtime-defined options.
+    /// Adds a choice question backed by runtime-defined [`DynOptions`].
+    ///
+    /// Use this for options loaded from configuration or a database. Prefer
+    /// [`Self::choice`] when an enum can represent the choices.
     ///
     /// # Errors
     ///
@@ -211,7 +232,10 @@ impl Questions {
         )
     }
 
-    /// Adds a score question backed by runtime-defined levels.
+    /// Adds a score question backed by runtime-defined [`DynLevels`].
+    ///
+    /// Use this for a scale loaded at runtime. Prefer [`Self::score`] when an
+    /// enum can represent the ordered levels.
     ///
     /// # Errors
     ///
@@ -231,13 +255,13 @@ impl Questions {
         )
     }
 
-    /// Returns the number of questions in this batch.
+    /// Returns the number of questions, for validating or reporting a batch.
     #[must_use]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
-    /// Reports whether this batch has no questions.
+    /// Reports whether [`encode`] would reject this batch as empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
@@ -278,6 +302,10 @@ impl Default for Questions {
 }
 
 /// Encodes a Jev request body without performing network I/O.
+///
+/// Use this at the boundary to a custom HTTP implementation. Pair it with
+/// [`crate::decode`] for successful responses and [`crate::classify`] for
+/// unsuccessful statuses.
 ///
 /// ```
 /// use jevrs_core::{Model, Questions, encode};

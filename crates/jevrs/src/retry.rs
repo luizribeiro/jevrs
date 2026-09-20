@@ -23,18 +23,18 @@ use core::time::Duration;
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RetryPolicy {
-    /// Number of retries after the initial request.
+    /// Set this to cap attempts after the initial request.
     pub max_retries: u32,
-    /// Delay before the first retry.
+    /// Set this to control the delay before the first exponential retry.
     pub base: Duration,
-    /// Maximum backoff or `Retry-After` delay.
+    /// Set this to cap both local backoff and server `Retry-After` delays.
     pub max: Duration,
-    /// Whether exponential delays receive per-call full jitter.
+    /// Keep this enabled to spread concurrent retries, or disable it for tests.
     pub jitter: bool,
 }
 
 impl RetryPolicy {
-    /// Computes the delay before a zero-based retry attempt.
+    /// Computes a delay when previewing or testing the configured schedule.
     #[must_use]
     pub fn delay_for(&self, attempt: u32, retry_after: Option<Duration>) -> Duration {
         if let Some(delay) = retry_after {

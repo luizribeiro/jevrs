@@ -4,98 +4,104 @@ use core::{fmt, time::Duration};
 use serde::Deserialize;
 
 /// An error produced while constructing, sending, or decoding a Jev request.
+///
+/// Match this non-exhaustive enum when recovery differs by category. API
+/// failures expose [`ErrorDetail`], including the request ID used by support.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
-    /// A request was encoded without any questions.
+    /// Match this to add a question before encoding the request again.
     #[error("at least one question is required")]
     NoQuestions,
-    /// A question identifier was inserted more than once.
+    /// Match this to report a duplicated application-defined question ID.
     #[error("duplicate question id: {0}")]
     DuplicateId(String),
-    /// A question's option or level set is invalid.
+    /// Match this to report invalid runtime-defined options or levels.
     #[error("invalid criteria for {id:?}: {reason}")]
     InvalidCriteria {
-        /// The affected question identifier, when one is available.
+        /// Use this to identify the affected question when one is available.
         id: Option<String>,
-        /// The violated criteria rule.
+        /// Use this static explanation in validation feedback.
         reason: &'static str,
     },
-    /// The client configuration cannot produce a valid request.
+    /// Match this when client configuration must be corrected before retrying.
     #[error("the client configuration is invalid: {reason}")]
     Config {
-        /// The invalid setting and why it cannot be used.
+        /// Use this explanation to identify the invalid setting.
         reason: String,
     },
-    /// Authentication failed with HTTP status 401 or 403.
+    /// Match this to replace a missing or rejected API key before retrying.
     #[error("authentication failed (HTTP {status}): {detail}")]
     Auth {
-        /// The HTTP response status.
+        /// Use this to distinguish missing-key 403 from rejected-key 401 responses.
         status: u16,
-        /// Parsed API error information.
+        /// Use these details for diagnostics and the server request ID.
         detail: ErrorDetail,
     },
-    /// The API rejected the request with HTTP status 400 or 422.
+    /// Match this to correct a semantic or structural request error.
     #[error("bad request (HTTP {status}): {detail}")]
     BadRequest {
-        /// The HTTP response status.
+        /// Use this to distinguish semantic 400 from structural 422 responses.
         status: u16,
-        /// Parsed API error information.
+        /// Use these details to explain why the request was rejected.
         detail: ErrorDetail,
     },
-    /// The API rate limit was reached.
+    /// Match this when a caller needs to observe exhausted 429 retries.
     #[error("rate limited (HTTP 429): {detail}")]
     RateLimited {
-        /// Server-requested delay before another attempt, when supplied.
+        /// Use this server delay instead of local backoff when supplied.
         retry_after: Option<Duration>,
-        /// Parsed API error information.
+        /// Use these details for diagnostics and the server request ID.
         detail: ErrorDetail,
     },
-    /// The API was overloaded and returned HTTP status 529.
+    /// Match this when a caller needs to observe exhausted 529 retries.
     #[error("service overloaded (HTTP 529): {detail}")]
     Overloaded {
-        /// Parsed API error information.
+        /// Use these details for diagnostics and the server request ID.
         detail: ErrorDetail,
     },
-    /// The API returned another unsuccessful HTTP status.
+    /// Match this as the fallback for an otherwise unclassified HTTP failure.
     #[error("HTTP {status}: {detail}")]
     Http {
-        /// The HTTP response status.
+        /// Use this to preserve the unclassified status code.
         status: u16,
-        /// Parsed API error information.
+        /// Use these details for diagnostics and the server request ID.
         detail: ErrorDetail,
     },
-    /// A response violated the Jev wire protocol.
+    /// Match this when an API response does not agree with the request schema.
     #[error("protocol error for {id:?}: {reason}")]
     Protocol {
-        /// The affected question identifier, when one is available.
+        /// Use this to identify the affected question when one is available.
         id: Option<String>,
-        /// The protocol violation.
+        /// Use this explanation when reporting a server or fixture mismatch.
         reason: String,
     },
-    /// JSON encoding or decoding failed.
+    /// Match this when serialized state or a response body is invalid JSON.
     #[error(transparent)]
     Json(#[from] serde_json::Error),
-    /// The underlying transport failed.
+    /// Match this to inspect a failure from the selected I/O adapter.
     #[error("transport error: {0}")]
     Transport(#[source] Box<dyn core::error::Error + Send + Sync>),
 }
 
 /// Information recovered from an unsuccessful API response body.
+///
+/// Use this for diagnostics without depending on one server error-body shape.
+/// [`Self::raw`] always preserves the body even when structured parsing fails.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ErrorDetail {
-    /// The API's machine-readable error category, when present.
+    /// Use this category for programmatic grouping when the API supplies it.
     pub error_type: Option<String>,
-    /// The API's human-readable explanation, when present.
+    /// Use this message in logs or user-facing diagnostics when present.
     pub message: Option<String>,
-    /// The `x-typesafe-request-id` response header, when present.
+    /// Use this `x-typesafe-request-id` value when contacting API support.
     pub request_id: Option<String>,
-    /// The response body decoded lossily as UTF-8.
+    /// Use this lossily decoded body when structured fields are absent.
     pub raw: String,
 }
 
 impl ErrorDetail {
-    /// Parses any known Jev error body without discarding malformed content.
+    /// Parses an unsuccessful response after its headers have been extracted.
     ///
     /// ```
     /// let body = br#"{"detail":{"error_type":"api_usage_error","message":"Invalid request."}}"#;

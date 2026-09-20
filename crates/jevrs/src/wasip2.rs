@@ -36,17 +36,17 @@ const READ_CHUNK_SIZE: u64 = 64 * 1024;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Wasip2Error {
-    /// The WASI HTTP host rejected or failed the request.
+    /// Match this to inspect a host-reported WASI HTTP failure.
     Http(ErrorCode),
-    /// The request URI lacks a scheme or authority.
+    /// Match this when correcting an invalid configured base URL.
     BadUrl(String),
-    /// A request or response header could not be converted.
+    /// Match this when diagnosing a header rejected by the WASI host.
     HeaderConversion(String),
-    /// A request body write or response body read failed.
+    /// Match this when diagnosing a WASI stream failure.
     Stream(String),
-    /// A WASI request resource could not be configured or consumed.
+    /// Match this when the host rejects or consumes a request resource.
     Request(String),
-    /// A WASI response resource could not be consumed.
+    /// Match this when the host response cannot be consumed.
     Response(String),
 }
 

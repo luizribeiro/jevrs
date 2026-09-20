@@ -22,10 +22,10 @@ use crate::Error;
 pub struct Model(Cow<'static, str>);
 
 impl Model {
-    /// The stable model release channel.
+    /// Use the stable release channel when you want automatic compatible upgrades.
     pub const LATEST: Self = Self(Cow::Borrowed("jev-latest"));
 
-    /// The preview model release channel.
+    /// Use the preview channel when evaluating changes before stable release.
     pub const PREVIEW: Self = Self(Cow::Borrowed("jev-preview"));
 }
 
@@ -90,7 +90,7 @@ impl Default for Model {
 pub struct Instructions(Value);
 
 impl Instructions {
-    /// Serializes structured instructions to their JSON representation.
+    /// Serializes structured instructions when a string cannot express the schema.
     ///
     /// # Errors
     ///
@@ -99,13 +99,13 @@ impl Instructions {
         Ok(Self(serde_json::to_value(value)?))
     }
 
-    /// Returns string instructions, or `None` for another JSON value.
+    /// Borrows text when a caller only handles string instructions.
     #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         self.0.as_str()
     }
 
-    /// Returns the instructions as their JSON representation.
+    /// Borrows the JSON value when a caller supports every instruction shape.
     #[must_use]
     pub const fn as_value(&self) -> &Value {
         &self.0
@@ -131,11 +131,14 @@ impl From<Value> for Instructions {
 }
 
 /// Token counts consumed while producing a Jev response.
+///
+/// Use these values for observability and cost accounting. They are available
+/// from both [`crate::Answers::usage`] and [`crate::Answered::usage`].
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Usage {
-    /// Tokens consumed by the request input.
+    /// Use this count to track state and question input consumption.
     pub input_tokens: u64,
-    /// Tokens generated in the response output.
+    /// Use this count to track answer output consumption.
     pub output_tokens: u64,
 }
 

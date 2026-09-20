@@ -22,21 +22,29 @@ const DEFAULT_BASE_URL: &str = "https://api.typesafe.ai";
 const EVALUATE_PATH: &str = "/v1/systemone";
 const MODELS_PATH: &str = "/v1/models";
 
-/// A Jev model advertised by the models endpoint.
+/// A Jev model advertised by [`Client::models`].
+///
+/// Use this to present available models or select a [`Model`] by name. Unknown
+/// response fields remain in [`Self::extra`] for forward compatibility.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct ModelInfo {
-    /// Model name accepted in an evaluation request.
+    /// Use this name to construct a [`Model`] for an evaluation request.
     pub name: String,
-    /// Human-readable model summary, when supplied.
+    /// Use this optional summary when presenting a model picker.
     pub description: Option<String>,
-    /// API-provided release timestamp, preserved as text.
+    /// Use this optional timestamp when showing model recency.
     pub release_date: Option<String>,
-    /// Additional fields returned by newer API versions.
+    /// Inspect additional fields only when adopting a newer API extension.
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }
 
 /// An async Jev API client backed by caller-selected I/O implementations.
+///
+/// Use [`Client::reqwest`] for a native Tokio application, target-specific WASI
+/// constructors for components, or [`Client::builder`] with a custom
+/// [`Transport`]. Use [`Self::ask`] for a [`QuestionSet`] and [`Self::evaluate`]
+/// for a runtime-built [`Questions`] batch.
 pub struct Client<T: Transport, S: Sleep = NoSleep> {
     base_url: String,
     api_key: String,
@@ -48,7 +56,9 @@ pub struct Client<T: Transport, S: Sleep = NoSleep> {
 }
 
 impl<T: Transport> Client<T, NoSleep> {
-    /// Starts configuring a client with `transport` and no retries.
+    /// Starts a client with a custom transport and retries disabled.
+    ///
+    /// Add a [`Sleep`] with [`ClientBuilder::sleep`] to enable retry delays.
     pub fn builder(transport: T) -> ClientBuilder<T, NoSleep> {
         ClientBuilder::new(transport)
     }
@@ -156,7 +166,10 @@ impl<T: Transport, S: Sleep> Client<T, S> {
         self.ask_with::<Q>(&self.model, state).await
     }
 
-    /// Asks a statically declared question set with a model override.
+    /// Asks a statically declared question set with a one-request model override.
+    ///
+    /// Use this instead of [`Self::ask`] when most requests use the client's
+    /// configured model but one must use another [`Model`].
     ///
     /// # Errors
     ///
@@ -172,7 +185,9 @@ impl<T: Transport, S: Sleep> Client<T, S> {
         Ok(Answered::from_answers(&handles, &answers))
     }
 
-    /// Evaluates `questions` using the client's configured model.
+    /// Evaluates a runtime-built question batch using the configured model.
+    ///
+    /// Use [`Self::ask`] instead when a [`QuestionSet`] defines the schema.
     ///
     /// # Errors
     ///
@@ -185,7 +200,10 @@ impl<T: Transport, S: Sleep> Client<T, S> {
         self.evaluate_with(&self.model, state, questions).await
     }
 
-    /// Evaluates `questions` with a model that overrides the client default.
+    /// Evaluates a runtime-built batch with a one-request model override.
+    ///
+    /// Use this instead of [`Self::evaluate`] when only this request needs a
+    /// different [`Model`].
     ///
     /// # Errors
     ///
@@ -201,7 +219,7 @@ impl<T: Transport, S: Sleep> Client<T, S> {
         decode(questions, &response_body)
     }
 
-    /// Lists models currently advertised by the API.
+    /// Lists models when an application needs discovery instead of a known alias.
     ///
     /// # Errors
     ///
@@ -318,14 +336,17 @@ impl<T: Transport> ClientBuilder<T, NoSleep> {
 }
 
 impl<T: Transport, S: Sleep> ClientBuilder<T, S> {
-    /// Sets the bearer token used for every request.
+    /// Sets a bearer token supplied directly by the application.
+    ///
+    /// Use [`Self::from_env`] when configuration should come from standard Jev
+    /// environment variables.
     #[must_use]
     pub fn api_key(mut self, key: impl Into<String>) -> Self {
         self.api_key = Some(key.into());
         self
     }
 
-    /// Loads the API key and optional base URL overrides from the environment.
+    /// Loads credentials and optional endpoint overrides from the environment.
     ///
     /// `TYPESAFE_BASE_URL` takes precedence over `TYPESAFE_API_BASE`.
     ///
@@ -344,21 +365,23 @@ impl<T: Transport, S: Sleep> ClientBuilder<T, S> {
         Ok(self)
     }
 
-    /// Overrides the API origin. One trailing slash is tolerated.
+    /// Overrides the API origin for a proxy, test server, or compatible endpoint.
+    ///
+    /// One trailing slash is tolerated.
     #[must_use]
     pub fn base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
         self
     }
 
-    /// Sets the model used by [`Client::evaluate`].
+    /// Sets the default model used by [`Client::ask`] and [`Client::evaluate`].
     #[must_use]
     pub fn model(mut self, model: Model) -> Self {
         self.model = model;
         self
     }
 
-    /// Replaces the client's retry policy.
+    /// Replaces retry limits and backoff when the defaults do not fit the caller.
     #[must_use]
     pub fn retry(mut self, retry: RetryPolicy) -> Self {
         self.retry = retry;
@@ -381,14 +404,14 @@ impl<T: Transport, S: Sleep> ClientBuilder<T, S> {
         }
     }
 
-    /// Appends an HTTP header after the client's standard headers.
+    /// Appends a header for proxy routing, tracing, or another integration need.
     #[must_use]
     pub fn header(mut self, name: HeaderName, value: HeaderValue) -> Self {
         self.extra_headers.push((name, value));
         self
     }
 
-    /// Validates the configuration and creates a client.
+    /// Validates configuration at startup and creates the reusable client.
     ///
     /// # Errors
     ///

@@ -27,7 +27,7 @@ use crate::{Sleep, Transport};
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Wasip3Error {
-    /// The WASI HTTP host rejected or failed the request.
+    /// Match this to inspect a host-reported WASI HTTP failure.
     Http(ErrorCode),
 }
 

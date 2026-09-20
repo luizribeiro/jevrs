@@ -36,27 +36,29 @@ use crate::{Answers, Error, Questions, Usage};
 /// # Ok::<(), Error>(())
 /// ```
 pub trait QuestionSet: Sized {
-    /// Typed handles used to bind the response to the declared fields.
+    /// Groups the handles needed to bind decoded answers to declared fields.
     type Handles;
 
-    /// The fully typed answers returned for this set.
+    /// Defines the answer struct returned for this reusable set.
     type Answers;
 
-    /// Builds the question batch and its corresponding typed handles.
+    /// Builds a fresh batch when this set is about to be evaluated.
     ///
     /// # Errors
     ///
     /// Returns a builder error, such as [`Error::DuplicateId`].
     fn questions() -> Result<(Questions, Self::Handles), Error>;
 
-    /// Clones the declared answers out of a decoded response.
+    /// Projects decoded slots into this set's typed answer struct.
     fn answers(handles: &Self::Handles, answers: &Answers) -> Self::Answers;
 }
 
 /// A typed question-set result together with response metadata.
 ///
-/// It dereferences to `T::Answers`, so generated answer fields can be read
-/// directly from the result.
+/// Use this after evaluating a [`QuestionSet`] when direct field access is more
+/// useful than retaining individual [`Handle`](crate::Handle) values. It
+/// dereferences to `T::Answers`, so generated answer fields can be read
+/// directly from the result. Use [`Answers`] for runtime-built batches.
 ///
 /// ```
 /// use jevrs_core::{Answered, Answers, Error, Handle, Noul, NoulAnswer, QuestionSet, Questions, decode};
@@ -88,7 +90,7 @@ pub trait QuestionSet: Sized {
 /// # Ok::<(), Error>(())
 /// ```
 pub struct Answered<T: QuestionSet> {
-    /// Typed answers in the shape declared by `T`.
+    /// Use this field when the generated answer struct must be moved as a whole.
     pub answers: T::Answers,
     model: String,
     usage: Usage,
@@ -124,7 +126,7 @@ where
 }
 
 impl<T: QuestionSet> Answered<T> {
-    /// Builds a typed result from decoded answers and their matching handles.
+    /// Converts [`Answers`] into a [`QuestionSet`]'s declared result shape.
     #[must_use]
     pub fn from_answers(handles: &T::Handles, answers: &Answers) -> Self {
         Self {
@@ -134,13 +136,13 @@ impl<T: QuestionSet> Answered<T> {
         }
     }
 
-    /// Returns the concrete model version reported by the API.
+    /// Returns the concrete model version for logs and reproducibility.
     #[must_use]
     pub fn model(&self) -> &str {
         &self.model
     }
 
-    /// Returns the token counts reported by the API.
+    /// Returns token counts for observability and cost accounting.
     #[must_use]
     pub const fn usage(&self) -> Usage {
         self.usage

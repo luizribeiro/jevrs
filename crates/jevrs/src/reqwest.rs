@@ -29,7 +29,7 @@ use crate::{Sleep, Transport};
 pub struct ReqwestTransport(reqwest::Client);
 
 impl ReqwestTransport {
-    /// Creates a transport using the TLS backend selected by crate features.
+    /// Creates a transport when TLS initialization failure must be handled.
     ///
     /// Native TLS wins when both `reqwest` and `native-tls` are enabled.
     ///
@@ -47,7 +47,7 @@ impl ReqwestTransport {
 }
 
 impl Default for ReqwestTransport {
-    /// Creates a transport with the feature-selected TLS backend.
+    /// Creates a transport when infallible startup is acceptable.
     ///
     /// # Panics
     ///

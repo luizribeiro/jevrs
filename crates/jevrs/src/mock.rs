@@ -13,10 +13,12 @@ use crate::{MaybeSend, Sleep, Transport};
 type Canned = Result<Response<Vec<u8>>, MockError>;
 
 /// A transport failure returned by [`MockTransport`].
+///
+/// Use this to test whether a client retries or returns a transport error.
 #[cfg_attr(docsrs, doc(cfg(feature = "test-util")))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct MockError {
-    /// Whether a client should retry the failed request.
+    /// Set this to choose the retry behavior under test.
     pub retryable: bool,
 }
 
@@ -67,7 +69,7 @@ struct MockState {
 }
 
 impl MockTransport {
-    /// Creates a mock that replays `outcomes` in order.
+    /// Creates a mock when all responses and failures are known up front.
     pub fn new(outcomes: impl IntoIterator<Item = Canned>) -> Self {
         Self {
             state: Arc::new(MockState {
@@ -77,17 +79,17 @@ impl MockTransport {
         }
     }
 
-    /// Adds a successful response to the back of the replay queue.
+    /// Queues a response when a test assembles outcomes incrementally.
     pub fn push_response(&self, response: Response<Vec<u8>>) {
         lock(&self.state.outcomes).push_back(Ok(response));
     }
 
-    /// Adds a transport failure to the back of the replay queue.
+    /// Queues a failure when a test assembles outcomes incrementally.
     pub fn push_error(&self, error: MockError) {
         lock(&self.state.outcomes).push_back(Err(error));
     }
 
-    /// Removes and returns all requests recorded so far.
+    /// Takes recorded requests when a test needs to assert HTTP framing.
     #[must_use]
     pub fn take_requests(&self) -> Vec<Request<Vec<u8>>> {
         core::mem::take(&mut *lock(&self.state.requests))
@@ -114,6 +116,8 @@ impl Transport for MockTransport {
 }
 
 /// A sleeper that records delays and completes immediately.
+///
+/// Use it with [`MockTransport`] to test retry timing without waiting.
 #[cfg_attr(docsrs, doc(cfg(feature = "test-util")))]
 #[derive(Clone, Default)]
 pub struct MockSleep {
@@ -121,7 +125,7 @@ pub struct MockSleep {
 }
 
 impl MockSleep {
-    /// Removes and returns all requested sleep durations.
+    /// Takes recorded durations when a test needs to assert retry timing.
     #[must_use]
     pub fn take_durations(&self) -> Vec<Duration> {
         core::mem::take(&mut *lock(&self.durations))

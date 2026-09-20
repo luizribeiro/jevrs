@@ -1,5 +1,5 @@
 #![no_std]
-//! Sans-I/O types, validation, and JSON codecs for the Jev API.
+#![doc = include_str!("../docs/guide.md")]
 
 extern crate alloc;
 

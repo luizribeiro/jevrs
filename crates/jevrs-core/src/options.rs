@@ -16,14 +16,14 @@ const LEVELS_TOO_MANY: &str = "levels must contain at most 10 entries";
 
 /// A finite set whose values have a dense canonical order.
 ///
-/// Derive implementations use this shared contract for both [`Options`] and
-/// [`Levels`]. Each value in [`Indexed::all`] must occupy the position returned
-/// by [`Indexed::index`].
+/// Implement this shared contract when implementing [`Options`] or [`Levels`]
+/// by hand. Derives implement it automatically. Each value in
+/// [`Indexed::all`] must occupy the position returned by [`Indexed::index`].
 pub trait Indexed: Copy + Eq + Send + Sync + 'static {
-    /// Returns every value in canonical index order.
+    /// Returns every value in the order used for maps and wire criteria.
     fn all() -> &'static [Self];
 
-    /// Returns this value's position in [`Indexed::all`].
+    /// Returns this value's position for indexing its associated map.
     fn index(self) -> usize;
 }
 
@@ -66,58 +66,65 @@ pub trait Indexed: Copy + Eq + Send + Sync + 'static {
 /// }
 /// ```
 pub trait Options: Indexed {
-    /// The number of choices in the set.
+    /// Declares the choice count so invalid derived or manual sets fail early.
     const N: usize;
 
-    /// Fails compilation when [`Options::N`] is outside the API bounds.
+    /// Forces a compile-time check of the API's 1-to-255 choice limit.
     const COUNT_OK: () = assert!(Self::N >= 1 && Self::N <= 255);
 
-    /// Dense storage containing one value per choice.
+    /// Selects dense storage for one value per choice.
     type Map<T: Send + Sync + 'static>: Index<Self, Output = T>
         + IndexMut<Self>
         + Send
         + Sync
         + 'static;
 
-    /// Returns the choice's wire key.
+    /// Returns the stable wire key used in criteria and response probabilities.
     fn key(self) -> &'static str;
 
-    /// Returns the optional choice description sent to the API.
+    /// Returns guidance for the model, or `None` when the key is sufficient.
     fn description(self) -> Option<&'static str>;
 
-    /// Finds a choice by its wire key.
+    /// Converts the model's selected wire key back into the enum.
     fn from_key(key: &str) -> Option<Self>;
 
-    /// Builds dense storage by calling `f` once per choice in index order.
+    /// Builds the associated map when decoding one value per choice.
     fn map_from_fn<T: Send + Sync + 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T>;
 }
 
 /// A statically defined ordered scoring scale.
+///
+/// Implement this trait when level count and order are compile-time schema.
+/// Use [`DynLevels`] when a scale comes from configuration or a database.
 pub trait Levels: Indexed + Ord {
-    /// The number of levels in the scale.
+    /// Declares the scale length so invalid sets fail early.
     const N: usize;
 
-    /// Fails compilation when [`Levels::N`] is outside the API bounds.
+    /// Forces a compile-time check of the API's 2-to-10 level limit.
     const COUNT_OK: () = assert!(Self::N >= 2 && Self::N <= 10);
 
-    /// Dense storage containing one value per level.
+    /// Selects dense storage for one value per level.
     type Map<T: Send + Sync + 'static>: Index<Self, Output = T>
         + IndexMut<Self>
         + Send
         + Sync
         + 'static;
 
-    /// Returns the human-readable level description sent to the API.
+    /// Returns the model guidance sent for this level.
     fn description(self) -> &'static str;
 
-    /// Finds a level by its numeric index.
+    /// Converts a zero-based wire index back into the level enum.
     fn from_index(index: usize) -> Option<Self>;
 
-    /// Builds dense storage by calling `f` once per level in index order.
+    /// Builds the associated map when decoding one value per level.
     fn map_from_fn<T: Send + Sync + 'static>(f: impl FnMut(Self) -> T) -> Self::Map<T>;
 }
 
 /// A runtime-defined set of named choices.
+///
+/// Use this with [`Questions::choice_dyn`](crate::Questions::choice_dyn) when
+/// keys come from configuration or a database. Use [`Options`] for static
+/// criteria and [`crate::ChoiceAnswer`] for its typed result.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DynOptions {
     keys: Vec<String>,
@@ -125,7 +132,7 @@ pub struct DynOptions {
 }
 
 impl DynOptions {
-    /// Creates a validated option set while preserving input order.
+    /// Validates runtime choices before they reach a request builder.
     ///
     /// ```
     /// use jevrs_core::DynOptions;
@@ -164,26 +171,26 @@ impl DynOptions {
         Ok(Self { keys, descriptions })
     }
 
-    /// Returns option keys in wire order.
+    /// Returns option keys in wire order for display or configuration checks.
     #[must_use]
     pub fn keys(&self) -> &[String] {
         &self.keys
     }
 
-    /// Returns the description for `key`, if the key has one.
+    /// Looks up model guidance when inspecting configured criteria.
     #[must_use]
     pub fn description(&self, key: &str) -> Option<&str> {
         self.index_of(key)
             .and_then(|index| self.descriptions[index].as_deref())
     }
 
-    /// Returns the position of `key` in wire order.
+    /// Finds a key's position when aligning external data with this set.
     #[must_use]
     pub fn index_of(&self, key: &str) -> Option<usize> {
         self.keys.iter().position(|candidate| candidate == key)
     }
 
-    /// Returns the number of options.
+    /// Returns the count when reporting or validating configured criteria.
     #[must_use]
     pub fn len(&self) -> usize {
         self.keys.len()
@@ -203,11 +210,27 @@ impl DynOptions {
 }
 
 /// A runtime-defined ordered scoring scale.
+///
+/// Use this with [`Questions::score_dyn`](crate::Questions::score_dyn) when
+/// level descriptions are runtime data. Use [`Levels`] for a static scale and
+/// [`crate::ScoreAnswer`] for its typed result.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DynLevels(Vec<String>);
 
 impl DynLevels {
-    /// Creates a validated scale while preserving input order.
+    /// Validates a runtime scale while preserving ascending score order.
+    ///
+    /// ```
+    /// use jevrs_core::DynLevels;
+    ///
+    /// let levels = DynLevels::new([
+    ///     "Calm".into(),
+    ///     "Frustrated".into(),
+    ///     "Very angry".into(),
+    /// ])?;
+    /// assert_eq!(levels.levels()[1], "Frustrated");
+    /// # Ok::<(), jevrs_core::Error>(())
+    /// ```
     ///
     /// # Errors
     ///
@@ -225,13 +248,13 @@ impl DynLevels {
         Ok(Self(levels))
     }
 
-    /// Returns level descriptions in ascending score order.
+    /// Returns descriptions when displaying or inspecting the configured scale.
     #[must_use]
     pub fn levels(&self) -> &[String] {
         &self.0
     }
 
-    /// Returns the number of levels.
+    /// Returns the count when reporting or validating a configured scale.
     #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
@@ -255,6 +278,9 @@ fn invalid_criteria(reason: &'static str) -> Error {
 }
 
 /// Dense per-key storage for a static [`Options`] or [`Levels`] implementation.
+///
+/// Use this as the `Map` associated type in a manual implementation. Derived
+/// implementations choose it automatically.
 #[derive(Clone, PartialEq)]
 pub struct ArrayMap<K: Indexed, T, const N: usize>([T; N], PhantomData<K>);
 
@@ -262,17 +288,17 @@ impl<K, T, const N: usize> ArrayMap<K, T, N>
 where
     K: Indexed,
 {
-    /// Creates a map from values arranged in key order.
+    /// Creates storage when values are already arranged in [`Indexed`] order.
     pub const fn new(values: [T; N]) -> Self {
         Self(values, PhantomData)
     }
 
-    /// Iterates over key-value pairs in index order.
+    /// Iterates in schema order when every key needs its decoded value.
     pub fn iter(&self) -> impl Iterator<Item = (K, &T)> {
         K::all().iter().copied().zip(self.0.iter())
     }
 
-    /// Returns the underlying fixed-size array.
+    /// Returns the array when a fixed-size consumer no longer needs typed keys.
     pub fn into_inner(self) -> [T; N] {
         self.0
     }

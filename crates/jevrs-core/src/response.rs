@@ -27,9 +27,10 @@ pub(crate) struct WireResponse {
 
 /// Eagerly decoded answers for one [`Questions`] batch.
 ///
-/// Retrieve answers with their typed [`Handle`] values. The response model and
-/// token counts remain available through [`Answers::model`] and
-/// [`Answers::usage`].
+/// Use this for a runtime-built batch and retrieve answers with their typed
+/// [`Handle`] values. Use [`crate::Answered`] for a static
+/// [`crate::QuestionSet`]. The response model and token counts remain available
+/// through [`Answers::model`] and [`Answers::usage`].
 pub struct Answers {
     model: Model,
     usage: Usage,
@@ -50,7 +51,7 @@ impl fmt::Debug for Answers {
 }
 
 impl Answers {
-    /// Retrieves the answer bound to `handle`.
+    /// Retrieves the typed answer bound to a handle from the same batch.
     ///
     /// ```
     /// use jevrs_core::{Questions, decode};
@@ -89,13 +90,13 @@ impl Answers {
         answer
     }
 
-    /// Returns the concrete model version reported by the API.
+    /// Returns the concrete model version for logs and reproducibility.
     #[must_use]
     pub fn model(&self) -> &str {
         self.model.as_ref()
     }
 
-    /// Returns the token counts reported by the API.
+    /// Returns token counts for observability and cost accounting.
     #[must_use]
     pub const fn usage(&self) -> Usage {
         self.usage
@@ -117,6 +118,9 @@ impl<Q: Question> Index<Handle<Q>> for Answers {
 }
 
 /// Decodes and validates a Jev response for `questions` without network I/O.
+///
+/// Use this on a successful HTTP response produced for the same [`Questions`]
+/// batch. Use [`crate::classify`] for an unsuccessful HTTP status.
 ///
 /// ```
 /// use jevrs_core::{Questions, decode};
