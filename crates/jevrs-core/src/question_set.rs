@@ -5,8 +5,8 @@ use crate::{Answers, Error, Questions, Usage};
 
 /// Defines a reusable, statically typed set of Jev questions.
 ///
-/// Implement this trait by hand when generated question sets are not suitable.
 /// Most applications use the `Questions` derive re-exported by `jevrs`.
+/// Implement this trait by hand when generated question sets are not suitable.
 ///
 /// ```
 /// use jevrs_core::{Answers, Error, Handle, Noul, NoulAnswer, QuestionSet, Questions};

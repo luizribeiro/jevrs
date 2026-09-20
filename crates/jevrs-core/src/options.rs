@@ -29,8 +29,9 @@ pub trait Indexed: Copy + Eq + Send + Sync + 'static {
 
 /// A statically defined set of named choices.
 ///
-/// Implement this trait when the choices are known at compile time. The order
-/// returned by [`Indexed::all`] defines their indexes and wire order.
+/// Most applications use the `Options` derive re-exported by `jevrs`.
+/// Implement this trait by hand when generated choice sets are not suitable.
+/// The order returned by [`Indexed::all`] defines their indexes and wire order.
 ///
 /// ```
 /// use jevrs_core::{ArrayMap, Indexed, Options};
@@ -95,7 +96,8 @@ pub trait Options: Indexed {
 
 /// A statically defined ordered scoring scale.
 ///
-/// Implement this trait when level count and order are compile-time schema.
+/// Most applications use the `Levels` derive re-exported by `jevrs`.
+/// Implement this trait by hand when generated scoring scales are not suitable.
 /// Use [`DynLevels`] when a scale comes from configuration or a database.
 pub trait Levels: Indexed + Ord {
     /// Declares the scale length so invalid sets fail early.
