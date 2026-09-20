@@ -29,29 +29,12 @@ use crate::{Sleep, Transport};
 pub enum Wasip3Error {
     /// The WASI HTTP host rejected or failed the request.
     Http(ErrorCode),
-    /// The request URI lacks a scheme or authority.
-    BadUrl(String),
-    /// A request or response header could not be converted.
-    HeaderConversion(String),
-    /// A request body write or response body read failed.
-    Stream(String),
-    /// A WASI request resource could not be configured or consumed.
-    Request(String),
-    /// A WASI response resource could not be consumed.
-    Response(String),
 }
 
 impl fmt::Display for Wasip3Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Http(error) => write!(formatter, "WASI HTTP error: {error}"),
-            Self::BadUrl(message) => write!(formatter, "invalid request URL: {message}"),
-            Self::HeaderConversion(message) => {
-                write!(formatter, "HTTP header conversion failed: {message}")
-            }
-            Self::Stream(message) => write!(formatter, "WASI stream error: {message}"),
-            Self::Request(message) => write!(formatter, "WASI request error: {message}"),
-            Self::Response(message) => write!(formatter, "WASI response error: {message}"),
         }
     }
 }
