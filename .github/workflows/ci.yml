@@ -18,11 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: nixbuild/nix-quick-install-action@v35
-      - uses: nix-community/cache-nix-action@v7
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'Cargo.lock', '**/*.nix') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+      - uses: ./.github/actions/setup-nix
       - name: Check flake
         run: nix flake check
       - name: Run pre-commit hooks
