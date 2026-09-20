@@ -3,6 +3,10 @@
 
 extern crate alloc;
 
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;
+
 mod builder;
 mod error;
 mod options;
