@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-20
+
 ### Added
 
 - Milestone 1 native client: core question and answer types, dynamic builders,
@@ -21,3 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Milestone 4 WASI HTTP 0.3 async transport, monotonic-clock retry sleep,
   `Client::wasip3()`, runnable component example, and fixture-backed Wasmtime
   smoke test on the pinned nightly toolchain.
+- String, object, and array question instructions with verbatim JSON encoding.
+- Dependency license, source, wildcard, duplicate-version, and advisory checks.
+- Crate metadata, docs.rs configuration, license files, and package verification
+  for the 0.1.0 release.
