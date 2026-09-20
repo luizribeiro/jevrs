@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nixbuild/nix-quick-install-action@v35
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'Cargo.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+      - name: Check flake
+        run: nix flake check
+      - name: Check formatting
+        run: nix develop -c cargo fmt --all --check
+      - name: Lint
+        run: nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Test
+        run: nix develop -c cargo nextest run --workspace --all-features
+      - name: Build jevrs-core for WASI Preview 2
+        run: nix develop -c cargo build -p jevrs-core --target wasm32-wasip2
+      - name: Build documentation
+        run: nix develop -c env RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo doc --workspace --no-deps
