@@ -240,9 +240,7 @@ let client = Client::builder()
 
 Jev 1.13 accepts at most 64,000 tokens total. The state plus the longest
 question may use at most 32,000 tokens. `jevrs` leaves token counting to the
-server. A request needs at least one question. [`Options`] and [`DynOptions`]
-accept 1 to 255 choices; [`Levels`] and [`DynLevels`] accept 2 to 10 score
-levels.
+server. A request needs at least one question.
 
 ```
 use jevrs::{DynLevels, Error};
