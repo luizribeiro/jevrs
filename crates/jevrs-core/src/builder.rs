@@ -26,10 +26,12 @@ static NEXT_BATCH_ID: AtomicU64 = AtomicU64::new(1);
 pub struct BatchId(u64);
 
 /// A typed reference to one question in a [`Questions`] batch.
-#[allow(dead_code)]
+///
+/// Passing a handle to [`crate::Answers`] from a different batch is a caller
+/// error and panics when the answer is retrieved.
 pub struct Handle<Q: Question> {
-    idx: u32,
-    batch: BatchId,
+    pub(crate) idx: u32,
+    pub(crate) batch: BatchId,
     _q: PhantomData<Q>,
 }
 
@@ -86,7 +88,7 @@ impl<Q: Question> fmt::Debug for Handle<Q> {
 /// ```
 pub struct Questions {
     pub(crate) entries: Vec<QuestionEntry>,
-    batch: BatchId,
+    pub(crate) batch: BatchId,
 }
 
 impl Questions {
@@ -368,12 +370,10 @@ pub(crate) struct QuestionEntry {
     instructions: Instructions,
     question_type: &'static str,
     criteria: Option<Criteria>,
-    #[allow(dead_code)]
     decoder: Decoder,
 }
 
 impl QuestionEntry {
-    #[allow(dead_code)]
     pub(crate) fn decode(&self, answer: WireAnswer) -> Result<AnswerSlot, Error> {
         (self.decoder)(&self.id, self.criteria.as_ref(), answer)
     }

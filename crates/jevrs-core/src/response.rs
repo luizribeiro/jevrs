@@ -5,24 +5,166 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::any::Any;
+use core::{any::Any, fmt, ops::Index};
 
 use serde::Deserialize;
 
 use crate::{
-    ChoiceAnswer, Confidence, DynChoiceAnswer, DynScoreAnswer, Error, Levels, Model, NoulAnswer,
-    Options, Probability, ScoreAnswer, Usage, builder::Criteria,
+    ChoiceAnswer, Confidence, DynChoiceAnswer, DynScoreAnswer, Error, Handle, Levels, Model,
+    NoulAnswer, Options, Probability, Question, Questions, ScoreAnswer, Usage,
+    builder::{BatchId, Criteria},
 };
 
 pub(crate) type AnswerSlot = Box<dyn Any>;
 pub(crate) type Decoder = fn(&str, Option<&Criteria>, WireAnswer) -> Result<AnswerSlot, Error>;
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 pub(crate) struct WireResponse {
     pub(crate) model: Model,
     pub(crate) answers: BTreeMap<String, WireAnswer>,
     pub(crate) usage: Usage,
+}
+
+/// Eagerly decoded answers for one [`Questions`] batch.
+///
+/// Retrieve answers with their typed [`Handle`] values. The response model and
+/// token counts remain available through [`Answers::model`] and
+/// [`Answers::usage`].
+pub struct Answers {
+    model: Model,
+    usage: Usage,
+    batch: BatchId,
+    slots: Vec<AnswerSlot>,
+}
+
+impl fmt::Debug for Answers {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Answers")
+            .field("model", &self.model)
+            .field("usage", &self.usage)
+            .field("batch", &self.batch)
+            .field("slot_count", &self.slots.len())
+            .finish()
+    }
+}
+
+impl Answers {
+    /// Retrieves the answer bound to `handle`.
+    ///
+    /// ```
+    /// use jevrs_core::{Questions, decode};
+    ///
+    /// let mut questions = Questions::new();
+    /// let urgent = questions.noul("is_urgent", "Does this convey urgency?")?;
+    /// let body = br#"{
+    ///   "model":"jev-1.13.0",
+    ///   "answers":{"is_urgent":{"type":"noul","noul":0.95}},
+    ///   "usage":{"input_tokens":414,"output_tokens":73}
+    /// }"#;
+    /// let answers = decode(&questions, body)?;
+    /// assert!((answers.get(urgent).p.get() - 0.95).abs() < f64::EPSILON);
+    /// # Ok::<(), jevrs_core::Error>(())
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics when `handle` was created by a different [`Questions`] batch. The
+    /// panic message identifies both batch IDs.
+    #[must_use]
+    pub fn get<Q: Question>(&self, handle: Handle<Q>) -> &Q::Answer {
+        assert_eq!(
+            handle.batch, self.batch,
+            "handle batch {:?} does not match answers batch {:?}",
+            handle.batch, self.batch
+        );
+        let index = usize::try_from(handle.idx).unwrap_or(usize::MAX);
+        let Some(answer) = self
+            .slots
+            .get(index)
+            .and_then(|slot| slot.downcast_ref::<Q::Answer>())
+        else {
+            unreachable!("a handle created by this batch has a matching answer slot");
+        };
+        answer
+    }
+
+    /// Returns the concrete model version reported by the API.
+    #[must_use]
+    pub fn model(&self) -> &str {
+        self.model.as_ref()
+    }
+
+    /// Returns the token counts reported by the API.
+    #[must_use]
+    pub const fn usage(&self) -> Usage {
+        self.usage
+    }
+}
+
+impl<Q: Question> Index<Handle<Q>> for Answers {
+    type Output = Q::Answer;
+
+    /// Retrieves the answer bound to `handle`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `handle` was created by a different [`Questions`] batch. The
+    /// panic message identifies both batch IDs.
+    fn index(&self, handle: Handle<Q>) -> &Self::Output {
+        self.get(handle)
+    }
+}
+
+/// Decodes and validates a Jev response for `questions` without network I/O.
+///
+/// ```
+/// use jevrs_core::{Questions, decode};
+///
+/// let mut questions = Questions::new();
+/// let urgent = questions.noul("is_urgent", "Does this convey urgency?")?;
+/// let body = br#"{
+///   "model":"jev-1.13.0",
+///   "answers":{"is_urgent":{"type":"noul","noul":0.95}},
+///   "usage":{"input_tokens":414,"output_tokens":73}
+/// }"#;
+/// let answers = decode(&questions, body)?;
+/// assert!(answers[urgent].is_yes(0.9));
+/// assert_eq!(answers.model(), "jev-1.13.0");
+/// # Ok::<(), jevrs_core::Error>(())
+/// ```
+///
+/// # Errors
+///
+/// Returns [`Error::Json`] for malformed JSON or an out-of-range probability.
+/// Returns [`Error::Protocol`] when answer IDs, types, keys, legends, or scores
+/// do not match the originating questions.
+pub fn decode(questions: &Questions, body: &[u8]) -> Result<Answers, Error> {
+    let mut response: WireResponse = serde_json::from_slice(body)?;
+
+    let mut slots = Vec::with_capacity(questions.entries.len());
+    for entry in &questions.entries {
+        let Some(answer) = response.answers.remove(&entry.id) else {
+            return Err(Error::Protocol {
+                id: Some(entry.id.clone()),
+                reason: "missing answer".into(),
+            });
+        };
+        slots.push(entry.decode(answer)?);
+    }
+    if let Some(id) = response.answers.keys().next().cloned() {
+        return Err(Error::Protocol {
+            id: Some(id),
+            reason: "answer for unknown question".into(),
+        });
+    }
+
+    Ok(Answers {
+        model: response.model,
+        usage: response.usage,
+        batch: questions.batch,
+        slots,
+    })
 }
 
 #[derive(Deserialize)]
@@ -327,25 +469,78 @@ mod tests {
         string::{String, ToString},
     };
 
-    use super::{WireAnswer, WireResponse};
+    use serde_json::json;
+
+    use super::{WireAnswer, WireResponse, decode};
     use crate::{
-        ChoiceAnswer, DynChoiceAnswer, DynLevels, DynOptions, DynScoreAnswer, Error, NoulAnswer,
-        Questions, ScoreAnswer,
-        test_support::{Dept, Frustration},
+        ChoiceAnswer, ChoiceQ, DynChoiceAnswer, DynChoiceQ, DynLevels, DynOptions, DynScoreAnswer,
+        DynScoreQ, Error, Handle, Model, NoulAnswer, NoulQ, Questions, ScoreAnswer, ScoreQ, encode,
+        test_support::{Dept, Frustration, TRIAGE_RESPONSE},
     };
 
-    const RECORDED_RESPONSE: &[u8] = br#"{
-      "model": "jev-1.13.0",
-      "answers": {
-        "is_urgent": { "type": "noul", "noul": 0.95 },
-        "department": { "type": "choice", "choice": "billing", "confidence": 0.79,
-          "probabilities": { "billing": 0.86, "technical": 0.14, "sales": 0.0 } },
-        "frustration": { "type": "score", "score": 1.05, "confidence": 0.93,
-          "legend": { "0": "Calm", "1": "Frustrated", "2": "Very angry" },
-          "probabilities": { "0": 0.0, "1": 0.95, "2": 0.05 } }
-      },
-      "usage": { "input_tokens": 414, "output_tokens": 73 }
-    }"#;
+    type StaticHandles = (
+        Handle<NoulQ>,
+        Handle<ChoiceQ<Dept>>,
+        Handle<ScoreQ<Frustration>>,
+    );
+    type DynamicHandles = (Handle<NoulQ>, Handle<DynChoiceQ>, Handle<DynScoreQ>);
+
+    fn static_triage() -> (Questions, StaticHandles) {
+        let mut questions = Questions::new();
+        let urgent = questions
+            .noul_with(
+                "is_urgent",
+                "Does this convey urgency?",
+                "Explicitly time-sensitive",
+                "No urgency expressed",
+            )
+            .unwrap();
+        let department = questions
+            .choice::<Dept>("department", "Which team should handle this?")
+            .unwrap();
+        let frustration = questions
+            .score::<Frustration>("frustration", "How frustrated is the customer?")
+            .unwrap();
+        (questions, (urgent, department, frustration))
+    }
+
+    fn dynamic_triage() -> (Questions, DynamicHandles) {
+        let mut questions = Questions::new();
+        let urgent = questions
+            .noul_with(
+                "is_urgent",
+                "Does this convey urgency?",
+                "Explicitly time-sensitive",
+                "No urgency expressed",
+            )
+            .unwrap();
+        let department = questions
+            .choice_dyn(
+                "department",
+                "Which team should handle this?",
+                DynOptions::new([
+                    (
+                        "billing".into(),
+                        Some("Payments, invoicing, refunds".into()),
+                    ),
+                    (
+                        "technical".into(),
+                        Some("Bugs, outages, integrations".into()),
+                    ),
+                    ("sales".into(), None),
+                ])
+                .unwrap(),
+            )
+            .unwrap();
+        let frustration = questions
+            .score_dyn(
+                "frustration",
+                "How frustrated is the customer?",
+                DynLevels::new(["Calm".into(), "Frustrated".into(), "Very angry".into()]).unwrap(),
+            )
+            .unwrap();
+        (questions, (urgent, department, frustration))
+    }
 
     fn static_choice_questions() -> Questions {
         let mut questions = Questions::new();
@@ -581,7 +776,7 @@ mod tests {
 
     #[test]
     fn recorded_response_parses() {
-        let response: WireResponse = serde_json::from_slice(RECORDED_RESPONSE).unwrap();
+        let response: WireResponse = serde_json::from_slice(TRIAGE_RESPONSE).unwrap();
         assert_eq!(response.model.as_ref(), "jev-1.13.0");
         assert_eq!(response.answers.len(), 3);
         assert_eq!(response.usage.input_tokens, 414);
@@ -604,5 +799,126 @@ mod tests {
             .err()
             .unwrap();
         assert!(error.to_string().contains("invalid Probability value 1.2"));
+    }
+
+    #[test]
+    fn static_triage_response_decodes_through_typed_handles() {
+        let (questions, (urgent, department, frustration)) = static_triage();
+        let answers = decode(&questions, TRIAGE_RESPONSE).unwrap();
+
+        assert!((answers[urgent].p.get() - 0.95).abs() < f64::EPSILON);
+        assert_eq!(answers[department].pick, Dept::Billing);
+        assert_eq!(answers[frustration].nearest(), Frustration::Frustrated);
+        assert!((answers[frustration].expected() - 1.05).abs() < f64::EPSILON);
+        assert_eq!(answers.model(), "jev-1.13.0");
+        assert_eq!(answers.usage().input_tokens, 414);
+        assert_eq!(answers.usage().output_tokens, 73);
+    }
+
+    #[test]
+    fn answers_debug_reports_metadata_and_slot_count() {
+        let (questions, _) = static_triage();
+        let answers = decode(&questions, TRIAGE_RESPONSE).unwrap();
+        let debug = format!("{answers:?}");
+
+        assert!(debug.contains("model: Model(\"jev-1.13.0\")"));
+        assert!(debug.contains("input_tokens: 414"));
+        assert!(debug.contains("batch: BatchId("));
+        assert!(debug.contains("slot_count: 3"));
+    }
+
+    #[test]
+    fn dynamic_triage_response_decodes_through_typed_handles() {
+        let (questions, (urgent, department, frustration)) = dynamic_triage();
+        let answers = decode(&questions, TRIAGE_RESPONSE).unwrap();
+
+        assert!((answers.get(urgent).p.get() - 0.95).abs() < f64::EPSILON);
+        assert_eq!(answers.get(department).pick, "billing");
+        assert_eq!(answers.get(frustration).nearest(), 1);
+        assert!((answers.get(frustration).expected() - 1.05).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn malformed_json_is_a_json_error() {
+        let (questions, _) = static_triage();
+        assert!(matches!(decode(&questions, b"{"), Err(Error::Json(_))));
+    }
+
+    #[test]
+    fn missing_answer_names_the_question() {
+        let mut questions = Questions::new();
+        questions.noul("is_urgent", "Urgent?").unwrap();
+        questions.noul("department", "Billing?").unwrap();
+        let body = br#"{
+          "model":"jev-1.13.0",
+          "answers":{"is_urgent":{"type":"noul","noul":0.95}},
+          "usage":{"input_tokens":414,"output_tokens":73}
+        }"#;
+
+        assert!(matches!(
+            decode(&questions, body),
+            Err(Error::Protocol { id: Some(id), reason })
+                if id == "department" && reason == "missing answer"
+        ));
+    }
+
+    #[test]
+    fn extra_answer_names_the_unknown_question() {
+        let mut questions = Questions::new();
+        questions.noul("is_urgent", "Urgent?").unwrap();
+        let body = br#"{
+          "model":"jev-1.13.0",
+          "answers":{
+            "is_urgent":{"type":"noul","noul":0.95},
+            "mystery":{"type":"noul","noul":0.5}
+          },
+          "usage":{"input_tokens":414,"output_tokens":73}
+        }"#;
+
+        assert!(matches!(
+            decode(&questions, body),
+            Err(Error::Protocol { id: Some(id), reason })
+                if id == "mystery" && reason == "answer for unknown question"
+        ));
+    }
+
+    #[test]
+    #[should_panic(expected = "does not match answers batch")]
+    fn handle_from_another_batch_panics() {
+        let mut first = Questions::new();
+        let first_handle = first.noul("is_urgent", "Urgent?").unwrap();
+        let answers = decode(
+            &first,
+            br#"{"model":"jev-1.13.0","answers":{"is_urgent":{"type":"noul","noul":0.95}},"usage":{"input_tokens":1,"output_tokens":1}}"#,
+        )
+        .unwrap();
+        let mut second = Questions::new();
+        let second_handle = second.noul("is_urgent", "Urgent?").unwrap();
+        let _ = first_handle;
+
+        let _ = answers.get(second_handle);
+    }
+
+    #[test]
+    fn recorded_request_and_response_work_end_to_end() {
+        let (questions, (urgent, department, frustration)) = static_triage();
+        let request = encode(
+            &Model::LATEST,
+            &"Help! My payouts have been failing for 3 days.",
+            &questions,
+        )
+        .unwrap();
+        let request: serde_json::Value = serde_json::from_slice(&request).unwrap();
+        assert_eq!(request["model"], json!("jev-latest"));
+        assert_eq!(request["questions"].as_object().unwrap().len(), 3);
+        assert_eq!(
+            request["questions"]["frustration"]["criteria"],
+            json!(["Calm", "Frustrated", "Very angry"])
+        );
+
+        let answers = decode(&questions, TRIAGE_RESPONSE).unwrap();
+        assert!(answers[urgent].is_yes(0.9));
+        assert_eq!(answers[department].pick, Dept::Billing);
+        assert_eq!(answers[frustration].nearest(), Frustration::Frustrated);
     }
 }

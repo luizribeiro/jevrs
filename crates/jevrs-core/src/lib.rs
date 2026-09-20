@@ -21,4 +21,5 @@ pub use question::{
     ChoiceAnswer, ChoiceQ, DynChoiceAnswer, DynChoiceQ, DynScoreAnswer, DynScoreQ, NoulAnswer,
     NoulQ, Question, ScoreAnswer, ScoreQ,
 };
+pub use response::{Answers, decode};
 pub use types::{Instructions, Model, Usage};

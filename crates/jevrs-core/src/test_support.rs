@@ -1,5 +1,18 @@
 use crate::{ArrayMap, Indexed, Levels, Options};
 
+pub(crate) const TRIAGE_RESPONSE: &[u8] = br#"{
+  "model": "jev-1.13.0",
+  "answers": {
+    "is_urgent": { "type": "noul", "noul": 0.95 },
+    "department": { "type": "choice", "choice": "billing", "confidence": 0.79,
+      "probabilities": { "billing": 0.86, "technical": 0.14, "sales": 0.0 } },
+    "frustration": { "type": "score", "score": 1.05, "confidence": 0.93,
+      "legend": { "0": "Calm", "1": "Frustrated", "2": "Very angry" },
+      "probabilities": { "0": 0.0, "1": 0.95, "2": 0.05 } }
+  },
+  "usage": { "input_tokens": 414, "output_tokens": 73 }
+}"#;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Dept {
     Billing,
