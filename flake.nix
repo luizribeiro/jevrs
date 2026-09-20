@@ -34,6 +34,17 @@
           ];
           targets = [ "wasm32-wasip2" ];
         };
+        nightlyToolchain = pkgs.rust-bin.nightly."2026-09-19".minimal.override {
+          extensions = [
+            "clippy"
+            "rustfmt"
+            "rust-src"
+          ];
+          targets = [
+            "wasm32-wasip2"
+            "wasm32-wasip3"
+          ];
+        };
         cargoFiles = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs|tests/fixtures/.*\\.json)$";
         cargoHook =
           {
@@ -146,6 +157,14 @@
           ]
           ++ gitHooks.enabledPackages;
           inherit (gitHooks) shellHook;
+        };
+
+        devShells.nightly = pkgs.mkShell {
+          packages = [
+            nightlyToolchain
+            pkgs.wasmtime
+            pkgs.wasm-tools
+          ];
         };
       }
     );
