@@ -52,9 +52,9 @@
 //!
 //! Concrete transports are selected with crate features. With none enabled,
 //! applications can provide their own [`Transport`] and [`Sleep`]
-//! implementations. The `wasip2` feature provides WASI HTTP 0.2 transport and
-//! sleep implementations on `wasm32`; `wasip3` and `web` remain reserved for
-//! future milestones.
+//! implementations. The `wasip2` and `wasip3` features provide matching WASI
+//! HTTP transport and sleep implementations on their respective targets; the
+//! `web` feature remains reserved for a future milestone.
 
 mod client;
 #[cfg(feature = "test-util")]
@@ -65,13 +65,15 @@ mod retry;
 #[cfg(all(test, feature = "test-util"))]
 mod test_support;
 mod transport;
-#[cfg(all(feature = "wasip2", target_arch = "wasm32"))]
-mod wasip2;
 #[cfg(any(
-    all(feature = "wasip2", target_arch = "wasm32"),
-    all(feature = "wasip2", test)
+    test,
+    all(feature = "wasip2", target_arch = "wasm32", target_env = "p2")
 ))]
-mod wasip2_conversion;
+mod wasi_common;
+#[cfg(all(feature = "wasip2", target_arch = "wasm32", target_env = "p2"))]
+mod wasip2;
+#[cfg(all(feature = "wasip3", target_arch = "wasm32", target_env = "p3"))]
+mod wasip3;
 
 pub use client::{Client, ClientBuilder, ModelInfo};
 pub use jevrs_core::*;
@@ -84,6 +86,9 @@ pub use mock::{MockError, MockSleep, MockTransport};
 pub use reqwest::{ReqwestTransport, TokioSleep};
 pub use retry::RetryPolicy;
 pub use transport::{MaybeSend, NoSleep, Sleep, Transport};
-#[cfg(all(feature = "wasip2", target_arch = "wasm32"))]
+#[cfg(all(feature = "wasip2", target_arch = "wasm32", target_env = "p2"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "wasip2")))]
 pub use wasip2::{Wasip2Error, Wasip2Sleep, Wasip2Transport};
+#[cfg(all(feature = "wasip3", target_arch = "wasm32", target_env = "p3"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wasip3")))]
+pub use wasip3::{Wasip3Error, Wasip3Sleep, Wasip3Transport};

@@ -25,7 +25,7 @@ use wasi::{
     },
 };
 
-use crate::{Sleep, Transport, wasip2_conversion};
+use crate::{Sleep, Transport, wasi_common};
 
 const READ_CHUNK_SIZE: u64 = 64 * 1024;
 
@@ -144,13 +144,13 @@ impl Sleep for Wasip2Sleep {
 
 fn send(request: Request<Vec<u8>>) -> Result<Response<Vec<u8>>, Wasip2Error> {
     let (parts, body) = request.into_parts();
-    let url = wasip2_conversion::url(&parts.uri)
-        .map_err(|message| Wasip2Error::BadUrl(message.into()))?;
-    let fields = Fields::from_list(&wasip2_conversion::headers(&parts.headers))
+    let url =
+        wasi_common::url(&parts.uri).map_err(|message| Wasip2Error::BadUrl(message.into()))?;
+    let fields = Fields::from_list(&wasi_common::headers(&parts.headers))
         .map_err(|error| Wasip2Error::HeaderConversion(error.to_string()))?;
     let request = OutgoingRequest::new(fields);
     request
-        .set_method(&wasi_method(wasip2_conversion::method(&parts.method)))
+        .set_method(&wasi_method(wasi_common::method(&parts.method)))
         .map_err(|()| Wasip2Error::Request("host rejected the HTTP method".into()))?;
     request
         .set_scheme(Some(&wasi_scheme(url.scheme)))
@@ -176,8 +176,8 @@ fn send(request: Request<Vec<u8>>) -> Result<Response<Vec<u8>>, Wasip2Error> {
     into_http_response(&response)
 }
 
-fn wasi_method(method: wasip2_conversion::WasiMethod) -> Method {
-    use wasip2_conversion::WasiMethod;
+fn wasi_method(method: wasi_common::WasiMethod) -> Method {
+    use wasi_common::WasiMethod;
 
     match method {
         WasiMethod::Get => Method::Get,
@@ -193,8 +193,8 @@ fn wasi_method(method: wasip2_conversion::WasiMethod) -> Method {
     }
 }
 
-fn wasi_scheme(scheme: wasip2_conversion::WasiScheme) -> Scheme {
-    use wasip2_conversion::WasiScheme;
+fn wasi_scheme(scheme: wasi_common::WasiScheme) -> Scheme {
+    use wasi_common::WasiScheme;
 
     match scheme {
         WasiScheme::Http => Scheme::Http,

@@ -651,7 +651,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "jevrs"
 version = "0.0.0"
 dependencies = [
+ "bytes",
  "http",
+ "http-body-util",
  "jevrs-core",
  "jevrs-derive",
  "reqwest",
@@ -659,6 +661,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "wasi 0.14.7+wasi-0.2.4",
+ "wasip3",
 ]
 
 [[package]]
@@ -1774,7 +1777,7 @@ version = "1.0.4+wasi-0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b67efb37e106e55ce722a510d6b5f9c17f083e5fc79afc2badeb12cc313d9487"
 dependencies = [
- "wit-bindgen",
+ "wit-bindgen 0.57.1",
 ]
 
 [[package]]
@@ -1783,6 +1786,19 @@ version = "0.0.0"
 dependencies = [
  "futures",
  "jevrs",
+]
+
+[[package]]
+name = "wasip3"
+version = "0.9.0+wasi-0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1d5749fdf69bb9400562eba50f8f25f5cd800ef4b74300038b6f99ae7409674"
+dependencies = [
+ "bytes",
+ "http",
+ "http-body",
+ "thiserror",
+ "wit-bindgen 0.62.0",
 ]
 
 [[package]]
@@ -2008,6 +2024,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "wit-bindgen"
+version = "0.62.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53cb4b5556c3a791e86838ea287782bdafa704d55b0e68b5b81a3a16b9ea5f4b"
+dependencies = [
+ "bitflags",
+ "futures",
 ]
 
 [[package]]

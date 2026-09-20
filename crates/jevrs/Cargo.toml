@@ -15,7 +15,7 @@ derive = ["dep:jevrs-derive"]
 reqwest = ["dep:reqwest", "dep:tokio", "reqwest/default-tls"]
 native-tls = ["dep:reqwest", "dep:tokio", "reqwest/native-tls"]
 wasip2 = ["dep:wasi"]
-wasip3 = []
+wasip3 = ["dep:bytes", "dep:http-body-util", "dep:wasip3"]
 web = []
 test-util = []
 
@@ -28,8 +28,13 @@ serde_json.workspace = true
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["time"] }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(all(target_arch = "wasm32", target_env = "p2"))'.dependencies]
 wasi = { version = "0.14", optional = true }
+
+[target.'cfg(all(target_arch = "wasm32", target_env = "p3"))'.dependencies]
+bytes = { version = "1", optional = true }
+http-body-util = { version = "0.1", optional = true }
+wasip3 = { version = "0.9", optional = true, features = ["http-compat"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
