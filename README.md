@@ -4,7 +4,7 @@
 
 Set `TYPESAFE_API_KEY`, then:
 
-```no_run
+```rust,no_run
 use jevrs::{Choice, Client, Levels, Noul, Options, Questions, Score};
 
 #[derive(Clone, Copy, Debug, Eq, Options, PartialEq)]
