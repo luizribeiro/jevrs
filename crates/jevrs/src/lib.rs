@@ -4,9 +4,15 @@
 //! applications can provide their own [`Transport`] and [`Sleep`]
 //! implementations.
 
+#[cfg(feature = "test-util")]
+mod mock;
 mod retry;
+#[cfg(all(test, feature = "test-util"))]
+mod test_support;
 mod transport;
 
 pub use jevrs_core::*;
+#[cfg(feature = "test-util")]
+pub use mock::{MockError, MockSleep, MockTransport};
 pub use retry::RetryPolicy;
 pub use transport::{MaybeSend, NoSleep, Sleep, Transport};
