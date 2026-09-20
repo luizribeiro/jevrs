@@ -185,6 +185,9 @@ The default transport follows the target: [`DefaultTransport`] resolves to
 transport failures as retryable: a failure before any bytes reached the server,
 never one after a partial send.
 
+On docs.rs, use the target selector to view the WASI transports under
+`wasm32-wasip2` and `wasm32-wasip3`, since they do not exist in the host build.
+
 ```
 use std::{convert::Infallible, future::Future};
 use http::{Request, Response};
