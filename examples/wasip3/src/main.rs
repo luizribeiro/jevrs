@@ -1,11 +1,20 @@
-//! Demonstrates runtime-defined triage questions in a WASI HTTP 0.3 component.
+//! Shows the runtime-defined triage flow in a WASI HTTP 0.3 component.
 //!
-//! Run live with:
-//! `nix develop .#nightly -c cargo build -p wasip3-example --target wasm32-wasip3 && wasmtime run -S http --env TYPESAFE_API_KEY target/wasm32-wasip3/debug/wasip3_example.wasm`
+//! This example needs a nightly toolchain with the `wasm32-wasip3` target;
+//! this repository's `nix develop .#nightly` provides one.
+//!
+//! Build and run against the live API:
+//!
+//! ```text
+//! nix develop .#nightly -c cargo build -p wasip3-example --target wasm32-wasip3 && wasmtime run -S http --env TYPESAFE_API_KEY target/wasm32-wasip3/debug/wasip3_example.wasm
+//! ```
 //!
 //! Run against the mock with `cargo xtask mock --port 3000` in one terminal,
 //! then:
-//! `nix develop .#nightly -c cargo build -p wasip3-example --target wasm32-wasip3 && wasmtime run -S http --env TYPESAFE_API_KEY=test-key --env TYPESAFE_BASE_URL=http://127.0.0.1:3000 target/wasm32-wasip3/debug/wasip3_example.wasm`
+//!
+//! ```text
+//! nix develop .#nightly -c cargo build -p wasip3-example --target wasm32-wasip3 && wasmtime run -S http --env TYPESAFE_API_KEY=test-key --env TYPESAFE_BASE_URL=http://127.0.0.1:3000 target/wasm32-wasip3/debug/wasip3_example.wasm
+//! ```
 
 #[cfg(all(target_arch = "wasm32", target_env = "p3"))]
 use jevrs::{Client, DynLevels, DynOptions, Questions};

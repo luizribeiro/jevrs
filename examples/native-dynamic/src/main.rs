@@ -1,5 +1,10 @@
-//! Demonstrates runtime-defined triage questions with the native client.
-//! Run with `cargo run -p native-dynamic` and `TYPESAFE_API_KEY` set.
+//! Shows the runtime-defined triage flow with the native client.
+//!
+//! Set `TYPESAFE_API_KEY`, then run:
+//!
+//! ```text
+//! cargo run -p native-dynamic
+//! ```
 
 use jevrs::{Client, DynLevels, DynOptions, Questions};
 

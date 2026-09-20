@@ -1,11 +1,17 @@
-//! Demonstrates runtime-defined triage questions in a WASI HTTP component.
+//! Shows the runtime-defined triage flow in a WASI HTTP 0.2 component.
 //!
-//! Run live with:
-//! `cargo build -p wasip2-example --target wasm32-wasip2 && wasmtime run -S http --env TYPESAFE_API_KEY target/wasm32-wasip2/debug/wasip2_example.wasm`
+//! Build and run against the live API:
+//!
+//! ```text
+//! cargo build -p wasip2-example --target wasm32-wasip2 && wasmtime run -S http --env TYPESAFE_API_KEY target/wasm32-wasip2/debug/wasip2_example.wasm
+//! ```
 //!
 //! Run against the mock with `cargo xtask mock --port 3000` in one terminal,
 //! then:
-//! `cargo build -p wasip2-example --target wasm32-wasip2 && wasmtime run -S http --env TYPESAFE_API_KEY=test-key --env TYPESAFE_BASE_URL=http://127.0.0.1:3000 target/wasm32-wasip2/debug/wasip2_example.wasm`
+//!
+//! ```text
+//! cargo build -p wasip2-example --target wasm32-wasip2 && wasmtime run -S http --env TYPESAFE_API_KEY=test-key --env TYPESAFE_BASE_URL=http://127.0.0.1:3000 target/wasm32-wasip2/debug/wasip2_example.wasm
+//! ```
 
 #[cfg(target_arch = "wasm32")]
 use jevrs::{Client, DynLevels, DynOptions, Questions};

@@ -27,3 +27,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dependency license, source, wildcard, duplicate-version, and advisory checks.
 - Crate metadata, docs.rs configuration, license files, and package verification
   for the 0.1.0 release.
+- Documentation: crate guides for typed and dynamic workflows, public API
+  examples, transport and retry guidance, and runnable example links.

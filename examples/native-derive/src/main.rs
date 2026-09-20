@@ -1,5 +1,10 @@
-//! Demonstrates derived triage questions with the native client.
-//! Run with `cargo run -p native-derive` and `TYPESAFE_API_KEY` set.
+//! Shows the typed triage flow with derives and the native client.
+//!
+//! Set `TYPESAFE_API_KEY`, then run:
+//!
+//! ```text
+//! cargo run -p native-derive
+//! ```
 
 use jevrs::{Choice, Client, Levels, Noul, Options, Questions, Score};
 
