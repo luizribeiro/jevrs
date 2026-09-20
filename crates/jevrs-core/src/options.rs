@@ -7,12 +7,12 @@ use core::{
 
 use crate::Error;
 
-const OPTIONS_TOO_FEW: &str = "options must contain at least one entry";
-const OPTIONS_TOO_MANY: &str = "options must contain at most 255 entries";
-const OPTION_KEY_EMPTY: &str = "option keys must not be empty";
-const OPTION_KEY_DUPLICATE: &str = "option keys must be unique";
-const LEVELS_TOO_FEW: &str = "levels must contain at least two entries";
-const LEVELS_TOO_MANY: &str = "levels must contain at most 10 entries";
+pub(crate) const OPTIONS_TOO_FEW: &str = "options must contain at least one entry";
+pub(crate) const OPTIONS_TOO_MANY: &str = "options must contain at most 255 entries";
+pub(crate) const OPTION_KEY_EMPTY: &str = "option keys must not be empty";
+pub(crate) const OPTION_KEY_DUPLICATE: &str = "option keys must be unique";
+pub(crate) const LEVELS_TOO_FEW: &str = "levels must contain at least two entries";
+pub(crate) const LEVELS_TOO_MANY: &str = "levels must contain at most 10 entries";
 
 /// A finite set whose values have a dense canonical order.
 ///
@@ -209,9 +209,15 @@ impl DynOptions {
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
+}
 
-    pub(crate) fn into_parts(self) -> (Vec<String>, Vec<Option<String>>) {
-        (self.keys, self.descriptions)
+impl IntoIterator for DynOptions {
+    type Item = (String, Option<String>);
+    type IntoIter =
+        core::iter::Zip<alloc::vec::IntoIter<String>, alloc::vec::IntoIter<Option<String>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.keys.into_iter().zip(self.descriptions)
     }
 }
 
@@ -273,9 +279,14 @@ impl DynLevels {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+}
 
-    pub(crate) fn into_inner(self) -> Vec<String> {
-        self.0
+impl IntoIterator for DynLevels {
+    type Item = String;
+    type IntoIter = alloc::vec::IntoIter<String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 

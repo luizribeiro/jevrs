@@ -214,17 +214,25 @@ impl Questions {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
-    pub fn choice_dyn(
+    /// Returns [`Error::InvalidCriteria`] when the options are invalid, with
+    /// its `id` set to this question's ID. Returns [`Error::DuplicateId`] if
+    /// `id` is already in this batch.
+    pub fn choice_dyn<K, D, I>(
         &mut self,
         id: impl Into<String>,
         instructions: impl Into<Instructions>,
-        options: DynOptions,
-    ) -> Result<Handle<DynChoiceQ>, Error> {
-        let (keys, descriptions) = options.into_parts();
-        let criteria = ChoiceCriteria(keys.into_iter().zip(descriptions).collect());
+        options: I,
+    ) -> Result<Handle<DynChoiceQ>, Error>
+    where
+        K: Into<String>,
+        D: Into<String>,
+        I: IntoIterator<Item = (K, Option<D>)>,
+    {
+        let id = id.into();
+        let options = criteria_for_question(DynOptions::new(options), &id)?;
+        let criteria = ChoiceCriteria(options.into_iter().collect());
         self.insert(
-            id.into(),
+            id,
             instructions.into(),
             "choice",
             Some(Criteria::Map(criteria)),
@@ -239,18 +247,22 @@ impl Questions {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::DuplicateId`] if `id` is already in this batch.
-    pub fn score_dyn(
+    /// Returns [`Error::InvalidCriteria`] when the levels are invalid, with its
+    /// `id` set to this question's ID. Returns [`Error::DuplicateId`] if `id`
+    /// is already in this batch.
+    pub fn score_dyn<S: Into<String>>(
         &mut self,
         id: impl Into<String>,
         instructions: impl Into<Instructions>,
-        levels: DynLevels,
+        levels: impl IntoIterator<Item = S>,
     ) -> Result<Handle<DynScoreQ>, Error> {
+        let id = id.into();
+        let levels = criteria_for_question(DynLevels::new(levels), &id)?;
         self.insert(
-            id.into(),
+            id,
             instructions.into(),
             "score",
-            Some(Criteria::Levels(levels.into_inner())),
+            Some(Criteria::Levels(levels.into_iter().collect())),
             decode_dynamic_score,
         )
     }
@@ -293,6 +305,16 @@ impl Questions {
         });
         Ok(handle)
     }
+}
+
+fn criteria_for_question<T>(criteria: Result<T, Error>, id: &str) -> Result<T, Error> {
+    criteria.map_err(|error| match error {
+        Error::InvalidCriteria { reason, .. } => Error::InvalidCriteria {
+            id: Some(id.into()),
+            reason,
+        },
+        other => other,
+    })
 }
 
 impl Default for Questions {
@@ -441,13 +463,22 @@ impl Serialize for ChoiceCriteria {
 
 #[cfg(test)]
 mod tests {
-    use alloc::{format, string::String};
+    use alloc::{
+        format,
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     use serde_json::{Value, json};
 
     use super::{Handle, Questions, encode};
     use crate::{
         DynLevels, DynOptions, Error, Model, NoulQ, Question,
+        options::{
+            LEVELS_TOO_FEW, LEVELS_TOO_MANY, OPTION_KEY_DUPLICATE, OPTION_KEY_EMPTY,
+            OPTIONS_TOO_FEW, OPTIONS_TOO_MANY,
+        },
         test_support::{Dept, Frustration},
     };
 
@@ -560,15 +591,11 @@ mod tests {
             .choice_dyn(
                 "department",
                 "Choose a team",
-                DynOptions::new([("billing", Some("Payments")), ("sales", None)]).unwrap(),
+                [("billing", Some("Payments")), ("sales", None)],
             )
             .unwrap();
         questions
-            .score_dyn(
-                "frustration",
-                "Rate frustration",
-                DynLevels::new(["Calm", "Angry"]).unwrap(),
-            )
+            .score_dyn("frustration", "Rate frustration", ["Calm", "Angry"])
             .unwrap();
 
         let value = encoded_value(&"state", &questions);
@@ -580,6 +607,89 @@ mod tests {
             value["questions"]["frustration"]["criteria"],
             json!(["Calm", "Angry"])
         );
+    }
+
+    #[test]
+    fn dynamic_questions_accept_owned_and_prevalidated_criteria() {
+        let mut questions = Questions::new();
+        let owned: Vec<(String, Option<String>)> = vec![
+            (String::from("billing"), Some(String::from("Payments"))),
+            (String::from("sales"), None),
+        ];
+        questions
+            .choice_dyn("owned", "Choose a team", owned)
+            .unwrap();
+
+        let options = DynOptions::new([("technical", Some("Bugs"))]).unwrap();
+        questions
+            .choice_dyn("prevalidated_choice", "Choose a team", options)
+            .unwrap();
+        let levels = DynLevels::new(["Calm", "Angry"]).unwrap();
+        questions
+            .score_dyn("prevalidated_score", "Rate frustration", levels)
+            .unwrap();
+
+        assert_eq!(questions.len(), 3);
+    }
+
+    fn assert_invalid_criteria(error: Error, expected_id: &str, expected_reason: &'static str) {
+        match error {
+            Error::InvalidCriteria { id, reason } => {
+                assert_eq!(id.as_deref(), Some(expected_id));
+                assert_eq!(reason, expected_reason);
+            }
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    fn dynamic_questions_report_invalid_criteria_without_adding_entries() {
+        let mut questions = Questions::new();
+        questions.noul("existing", "Existing question").unwrap();
+
+        let empty: Vec<(&str, Option<&str>)> = Vec::new();
+        let error = questions
+            .choice_dyn("empty_options", "Choose", empty)
+            .unwrap_err();
+        assert_invalid_criteria(error, "empty_options", OPTIONS_TOO_FEW);
+        assert_eq!(questions.len(), 1);
+
+        let error = questions
+            .choice_dyn("empty_key", "Choose", [("", None::<&str>)])
+            .unwrap_err();
+        assert_invalid_criteria(error, "empty_key", OPTION_KEY_EMPTY);
+        assert_eq!(questions.len(), 1);
+
+        let error = questions
+            .choice_dyn(
+                "duplicate_key",
+                "Choose",
+                [("billing", None::<&str>), ("billing", None)],
+            )
+            .unwrap_err();
+        assert_invalid_criteria(error, "duplicate_key", OPTION_KEY_DUPLICATE);
+        assert_eq!(questions.len(), 1);
+
+        let too_many = (0_u16..256)
+            .map(|index| (index.to_string(), None::<String>))
+            .collect::<Vec<_>>();
+        let error = questions
+            .choice_dyn("too_many_options", "Choose", too_many)
+            .unwrap_err();
+        assert_invalid_criteria(error, "too_many_options", OPTIONS_TOO_MANY);
+        assert_eq!(questions.len(), 1);
+
+        let error = questions
+            .score_dyn("one_level", "Rate", ["only"])
+            .unwrap_err();
+        assert_invalid_criteria(error, "one_level", LEVELS_TOO_FEW);
+        assert_eq!(questions.len(), 1);
+
+        let error = questions
+            .score_dyn("eleven_levels", "Rate", ["level"; 11])
+            .unwrap_err();
+        assert_invalid_criteria(error, "eleven_levels", LEVELS_TOO_MANY);
+        assert_eq!(questions.len(), 1);
     }
 
     #[test]
