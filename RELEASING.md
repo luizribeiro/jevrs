@@ -22,11 +22,9 @@
    through trusted publishing, and creates the GitHub release from the
    changelog.
 
-If publishing fails after some crates upload, a re-run cannot upload them
-again. Publish the remaining crates by hand in dependency order (`jevrs-core`,
-`jevrs-derive`, then `jevrs`) with
-`nix develop -c cargo publish -p <crate> --locked`, then create the release
-with `gh release create`.
+If the workflow fails after some crates upload, re-run it from the Actions tab.
+The publish step skips crate versions that already exist on crates.io, and the
+release step skips an existing release.
 
 ## One-time setup
 
